@@ -5,8 +5,20 @@ Creates an Anki deck with three subdecks: radicals, hanzi, and vocabulary
 Inspired by WaniKani with mnemonics for radicals, hanzi characters, and vocab
 """
 
-import genanki
 import random
+import sys
+
+try:
+    import genanki
+except ImportError:
+    print("❌ Error: genanki is not installed")
+    print("\nTo install genanki, run:")
+    print("  pip install -r requirements.txt")
+    print("\nOr install directly:")
+    print("  pip install genanki")
+    print("\nTo see what the deck would look like without installing, run:")
+    print("  python demo.py")
+    sys.exit(1)
 
 
 # Define unique model IDs for each card type
