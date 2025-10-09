@@ -21,7 +21,7 @@ def validate_radical(radical, index):
 def validate_hanzi(hanzi, index):
     """Validate a hanzi entry"""
     errors = []
-    required_fields = ['character', 'meaning', 'reading', 'radicals', 'mnemonic']
+    required_fields = ['character', 'meaning', 'reading', 'radicals', 'meaning_mnemonic', 'reading_mnemonic']
     
     for field in required_fields:
         if field not in hanzi:

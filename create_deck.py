@@ -112,7 +112,8 @@ hanzi_model = genanki.Model(
         {'name': 'Meaning'},
         {'name': 'Reading'},
         {'name': 'Radicals'},
-        {'name': 'Mnemonic'},
+        {'name': 'MeaningMnemonic'},
+        {'name': 'ReadingMnemonic'},
     ],
     templates=[
         {
@@ -132,8 +133,12 @@ hanzi_model = genanki.Model(
                     {{Radicals}}
                 </div>
                 <div class="mnemonic">
-                    <h3>Mnemonic:</h3>
-                    {{Mnemonic}}
+                    <h3>Meaning Mnemonic:</h3>
+                    {{MeaningMnemonic}}
+                </div>
+                <div class="mnemonic">
+                    <h3>Reading Mnemonic:</h3>
+                    {{ReadingMnemonic}}
                 </div>
             ''',
         },
@@ -301,7 +306,8 @@ def create_hanzi_cards(hanzi_data):
                 hanzi['meaning'],
                 hanzi['reading'],
                 hanzi['radicals'],
-                hanzi['mnemonic']
+                hanzi['meaning_mnemonic'],
+                hanzi['reading_mnemonic']
             ]
         )
         cards.append(note)
@@ -327,7 +333,7 @@ def create_vocab_cards(vocab_data):
     return cards
 
 
-def create_deck(radicals_data=None, hanzi_data=None, vocab_data=None, output_file='Tian_Hanzi_Deck.apkg'):
+def create_deck(radicals_data=None, hanzi_data=None, vocab_data=None, output_file='anki_deck/Tian_Hanzi_Deck.apkg'):
     """
     Create an Anki deck with three subdecks: radicals, hanzi, and vocabulary
     
@@ -335,8 +341,14 @@ def create_deck(radicals_data=None, hanzi_data=None, vocab_data=None, output_fil
         radicals_data: List of dictionaries with radical data
         hanzi_data: List of dictionaries with hanzi character data
         vocab_data: List of dictionaries with vocabulary data
-        output_file: Name of the output .apkg file
+        output_file: Name of the output .apkg file (default saves to anki_deck folder)
     """
+    import os
+    
+    # Ensure the anki_deck directory exists
+    output_dir = os.path.dirname(output_file)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     # Create main deck
     main_deck = genanki.Deck(MAIN_DECK_ID, 'Tian Hanzi Deck')
     
@@ -414,21 +426,24 @@ def get_example_hanzi():
                 'meaning': 'Person',
                 'reading': 'rén',
                 'radicals': '人 (person)',
-                'mnemonic': 'A person standing with two legs spread apart.'
+                'meaning_mnemonic': 'A person standing with two legs spread apart.',
+                'reading_mnemonic': 'Sounds like "ren" in "render" - render a person in a drawing!'
             },
             {
                 'character': '水',
                 'meaning': 'Water',
                 'reading': 'shuǐ',
                 'radicals': '氵 (water)',
-                'mnemonic': 'The character shows water flowing down a stream.'
+                'meaning_mnemonic': 'The character shows water flowing down a stream.',
+                'reading_mnemonic': 'Sounds like "shway" - the sound water makes when it flows.'
             },
             {
                 'character': '天',
                 'meaning': 'Heaven, Sky, Day',
                 'reading': 'tiān',
                 'radicals': '一 (ground) + 大 (big)',
-                'mnemonic': 'Something big (大) above the ground (一) - that\'s the sky!'
+                'meaning_mnemonic': 'Something big (大) above the ground (一) - that\'s the sky!',
+                'reading_mnemonic': 'Sounds like "tee-an" - imagine a big T (tee) in the sky!'
             },
         ]
 

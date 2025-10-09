@@ -94,7 +94,8 @@ create_deck(
 | meaning | string | Yes | English meaning |
 | reading | string | Yes | Pinyin pronunciation |
 | radicals | string | Yes | Component radicals |
-| mnemonic | string | Yes | Memory aid story |
+| meaning_mnemonic | string | Yes | Memory aid for the meaning |
+| reading_mnemonic | string | Yes | Memory aid for the pronunciation |
 
 ### Vocabulary Fields
 
@@ -128,7 +129,8 @@ create_deck(
 **Back:**
 - Shows meaning and reading
 - Displays component radicals
-- Shows the mnemonic
+- Shows the meaning mnemonic
+- Shows the reading mnemonic
 
 ### Vocabulary Cards (Purple Theme)
 

@@ -1,3 +1,9 @@
+# Anki deck files (large files, regenerate as needed)
+anki_deck/*.apkg
+
+# Generated data file (very large, ~2.6MB)
+tian_v1_data.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -208,3 +214,4 @@ __marimo__/
 
 # Anki deck files (generated)
 *.apkg
+data
