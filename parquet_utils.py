@@ -205,26 +205,6 @@ class ParquetDataManager:
         print("=" * 60)
 
 
-def save_tian_v1_data_to_parquet(output_dir: str = "data") -> None:
-    """
-    Save tian_v1_data.py data to Parquet format
-    
-    Args:
-        output_dir: Directory to save the parquet files
-    """
-    print("🔄 Importing tian_v1_data...")
-    try:
-        from tian_v1_data import RADICALS, HANZI, VOCABULARY
-    except ImportError:
-        print("❌ Error: Could not import tian_v1_data.py")
-        print("   Make sure the file exists in the current directory")
-        sys.exit(1)
-    
-    manager = ParquetDataManager(output_dir)
-    manager.save_all(RADICALS, HANZI, VOCABULARY)
-    manager.print_stats()
-
-
 def load_tian_v1_data_from_parquet(data_dir: str = "data") -> tuple:
     """
     Load Tian Hanzi Deck data from Parquet files
@@ -244,23 +224,18 @@ if __name__ == "__main__":
     Command-line interface for Parquet data operations
     
     Usage:
-        python parquet_utils.py save    # Save tian_v1_data to Parquet
         python parquet_utils.py load    # Load and verify Parquet data
         python parquet_utils.py stats   # Show statistics
     """
     if len(sys.argv) < 2:
         print("Usage:")
-        print("  python parquet_utils.py save     # Save tian_v1_data to Parquet")
         print("  python parquet_utils.py load     # Load and verify Parquet data")
         print("  python parquet_utils.py stats    # Show statistics")
         sys.exit(1)
     
     command = sys.argv[1].lower()
     
-    if command == "save":
-        save_tian_v1_data_to_parquet()
-    
-    elif command == "load":
+    if command == "load":
         radicals, hanzi, vocabulary = load_tian_v1_data_from_parquet()
         print("\n📊 Loaded Data Summary:")
         print(f"  • Radicals: {len(radicals)}")
@@ -281,5 +256,5 @@ if __name__ == "__main__":
     
     else:
         print(f"❌ Unknown command: {command}")
-        print("Valid commands: save, load, stats")
+        print("Valid commands: load, stats")
         sys.exit(1)

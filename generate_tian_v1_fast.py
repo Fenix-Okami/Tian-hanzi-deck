@@ -15,6 +15,7 @@ This script generates three decks:
 import sys
 from collections import OrderedDict
 from multiprocessing import Pool, cpu_count
+from parquet_utils import ParquetDataManager
 
 try:
     from hanzipy.decomposer import HanziDecomposer
@@ -304,81 +305,25 @@ def generate_vocab_data(hanzi_data):
     return vocab_data
 
 
-def save_data_to_file(radicals_dict, hanzi_data, vocab_data, filename='tian_v1_data.py'):
-    """Save generated data to a Python file"""
-    print(f"\n💾 Saving data to {filename}...")
+def save_data_to_parquet(radicals_dict, hanzi_data, vocab_data, output_dir='data'):
+    """Save generated data to Parquet files"""
+    print(f"\n💾 Saving data to Parquet format in {output_dir}/...")
     
-    with open(filename, 'w', encoding='utf-8') as f:
-        f.write('"""\n')
-        f.write('Tian Hanzi Deck v1 Data\n')
-        f.write(f'Generated from top {TOP_N_HANZI} most frequent Chinese characters\n')
-        f.write('Using Hanzipy library for decomposition and dictionary lookups\n')
-        f.write('Generated with multiprocessing optimization\n')
-        f.write('"""\n\n')
-        
-        # Write radicals
-        f.write('# ============================================\n')
-        f.write('# RADICALS\n')
-        f.write('# ============================================\n')
-        f.write('RADICALS = [\n')
-        for radical, meaning in radicals_dict.items():
-            mnemonic = generate_radical_mnemonic(radical, meaning)
-            f.write('    {\n')
-            f.write(f"        'radical': '{radical}',\n")
-            f.write(f"        'meaning': '{meaning}',\n")
-            f.write(f"        'mnemonic': '{mnemonic}'\n")
-            f.write('    },\n')
-        f.write(']\n\n')
-        
-        # Write hanzi
-        f.write('# ============================================\n')
-        f.write('# HANZI\n')
-        f.write('# ============================================\n')
-        f.write('HANZI = [\n')
-        for hanzi in hanzi_data:
-            # Escape single quotes in strings
-            character = hanzi['character'].replace("'", "\\'")
-            meaning = hanzi['meaning'].replace("'", "\\'")
-            reading = hanzi['reading'].replace("'", "\\'")
-            radicals = hanzi['radicals'].replace("'", "\\'")
-            meaning_mnemonic = hanzi['meaning_mnemonic'].replace("'", "\\'")
-            reading_mnemonic = hanzi['reading_mnemonic'].replace("'", "\\'")
-            
-            f.write('    {\n')
-            f.write(f"        'character': '{character}',\n")
-            f.write(f"        'meaning': '{meaning}',\n")
-            f.write(f"        'reading': '{reading}',\n")
-            f.write(f"        'radicals': '{radicals}',\n")
-            f.write(f"        'meaning_mnemonic': '{meaning_mnemonic}',\n")
-            f.write(f"        'reading_mnemonic': '{reading_mnemonic}'\n")
-            f.write('    },\n')
-        f.write(']\n\n')
-        
-        # Write vocabulary
-        f.write('# ============================================\n')
-        f.write('# VOCABULARY\n')
-        f.write('# ============================================\n')
-        f.write('VOCABULARY = [\n')
-        for vocab in vocab_data:
-            # Escape single quotes in strings
-            word = vocab['word'].replace("'", "\\'")
-            meaning = vocab['meaning'].replace("'", "\\'")
-            reading = vocab['reading'].replace("'", "\\'")
-            characters = vocab['characters'].replace("'", "\\'")
-            example = vocab['example'].replace("'", "\\'")
-            mnemonic = vocab['mnemonic'].replace("'", "\\'")
-            
-            f.write('    {\n')
-            f.write(f"        'word': '{word}',\n")
-            f.write(f"        'meaning': '{meaning}',\n")
-            f.write(f"        'reading': '{reading}',\n")
-            f.write(f"        'characters': '{characters}',\n")
-            f.write(f"        'example': '{example}',\n")
-            f.write(f"        'mnemonic': '{mnemonic}'\n")
-            f.write('    },\n')
-        f.write(']\n')
+    # Convert radicals dict to list of dicts
+    radicals_list = []
+    for radical, meaning in radicals_dict.items():
+        mnemonic = generate_radical_mnemonic(radical, meaning)
+        radicals_list.append({
+            'radical': radical,
+            'meaning': meaning,
+            'mnemonic': mnemonic
+        })
     
-    print(f"✓ Data saved to {filename}")
+    # Save using ParquetDataManager
+    manager = ParquetDataManager(output_dir)
+    manager.save_all(radicals_list, hanzi_data, vocab_data)
+    
+    print(f"✓ Data saved to Parquet files in {output_dir}/")
 
 
 def main():
@@ -403,8 +348,8 @@ def main():
     # Step 4: Generate vocabulary data
     vocab_data = generate_vocab_data(hanzi_data)
     
-    # Step 5: Save to file
-    save_data_to_file(radicals_dict, hanzi_data, vocab_data)
+    # Step 5: Save to Parquet
+    save_data_to_parquet(radicals_dict, hanzi_data, vocab_data)
     
     # Calculate elapsed time
     elapsed_time = time.time() - start_time
@@ -424,12 +369,11 @@ def main():
     print(f"   - CPU Cores Used: {NUM_PROCESSES}")
     print(f"   - Total Time: {minutes}m {seconds}s")
     print(f"   - Avg Speed: {len(hanzi_data) / elapsed_time:.1f} characters/second")
-    print("\n📁 Data saved to: tian_v1_data.py")
+    print("\n📁 Data saved to: data/ (Parquet format)")
     print("\n🎯 Next steps:")
-    print("   1. Review the generated data in tian_v1_data.py")
-    print("   2. Edit any mnemonics or meanings as needed")
-    print("   3. Run: python create_tian_v1_deck.py")
-    print("   4. Import the .apkg file into Anki")
+    print("   1. Review the generated data: python parquet_utils.py load")
+    print("   2. Create the Anki deck: python create_deck_from_parquet.py")
+    print("   3. Import the .apkg file into Anki")
     print("=" * 60)
 
 
