@@ -49,7 +49,30 @@ This creates a natural learning curve where you always understand the components
 pip install -r requirements.txt
 ```
 
-### Generate the Deck
+### HSK-Based Deck Generation (Default ⭐)
+
+**HSK 1-3 is now the default approach!** Generate targeted decks based on HSK levels with productive component analysis:
+
+```bash
+# Generate deck for HSK 1-3 (default: 899 characters, 2227 words, 233 radicals)
+python generate_hsk_deck.py
+```
+
+**Output files:**
+- `data/vocabulary.csv/parquet` - 2,227 HSK 1-3 words
+- `data/hanzi.csv/parquet` - 899 characters  
+- `data/radicals.csv/parquet` - 233 productive components
+
+**Why HSK-based is better:**
+- ✅ 40% fewer characters than arbitrary frequency (899 vs 1500)
+- ✅ 36% more vocabulary (2227 vs 1643)  
+- ✅ Direct HSK exam alignment
+- ✅ Scientifically calculated component productivity scores
+- ✅ Learn only what you need for your HSK level
+
+See [HSK_DECK_GENERATION_GUIDE.md](HSK_DECK_GENERATION_GUIDE.md) for details.
+
+### Generate the Deck (Original Method)
 
 **Quick Method (Recommended):**
 
@@ -93,18 +116,20 @@ The HSK scorer assigns priority scores based on HSK level and frequency rankings
 
 ```
 ├── anki_deck/
-│   └── Tian_Hanzi_Deck_v1.apkg         # The deck file
+│   └── Tian_Hanzi_Deck_v1.apkg         # The deck file (v1 - original)
 ├── data/
-│   ├── radicals.parquet                # Radical data (with levels)
-│   ├── hanzi.parquet                   # Character data (with levels)
-│   ├── vocabulary.parquet              # Vocabulary data (with levels)
+│   ├── radicals.csv/parquet            # HSK 1-3: 233 productive components
+│   ├── hanzi.csv/parquet               # HSK 1-3: 899 characters
+│   ├── vocabulary.csv/parquet          # HSK 1-3: 2,227 words
 │   ├── hsk_hanzi_scored.csv/parquet    # HSK hanzi with priority scores
 │   ├── hsk_vocabulary_scored.csv/parquet # HSK vocabulary with priority scores
 │   └── HSK-3.0/                        # HSK 3.0 data (hanzi & frequency lists)
-├── generate_tian_v1_fast.py            # Data generation
+├── generate_hsk_deck.py                # HSK-based deck generation (default)
+├── generate_tian_v1_fast.py            # Data generation (original v1)
 ├── sort_by_dependencies.py             # Dependency-based sorting
 ├── create_deck_from_parquet.py         # Deck creation
 ├── hsk_scorer.py                       # HSK scoring system
+├── analyze_hsk_components.py           # Component productivity analysis
 ├── parquet_utils.py                    # Data utilities
 └── pinyin_converter.py                 # Numbered → accented pinyin
 ```

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tian Hanzi Deck - Vocabulary Card Preview</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .preview-container {
+            max-width: 500px;
+            width: 100%;
+            margin-bottom: 40px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .card-type {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+        
+        .vocab-type {
+            color: #1976D2;
+        }
+        
+        .vocab-word {
+            font-size: 100px;
+            color: #1976D2;
+            font-weight: bold;
+            margin: 30px 0;
+            line-height: 1.2;
+        }
+        
+        .pinyin {
+            font-size: 32px;
+            color: #555;
+            margin: 20px 0;
+            font-style: italic;
+        }
+        
+        .meaning {
+            font-size: 28px;
+            color: #333;
+            margin: 20px 0;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+        
+        .back-content {
+            text-align: left;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #eee;
+        }
+        
+        .hanzi-breakdown {
+            margin: 25px 0;
+            padding: 20px;
+            background-color: #E3F2FD;
+            border-radius: 5px;
+            border-left: 4px solid #1976D2;
+        }
+        
+        .section-title {
+            color: #1976D2;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .hanzi-list {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        
+        .hanzi-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            flex: 1;
+            min-width: 100px;
+        }
+        
+        .hanzi-char {
+            font-size: 48px;
+            color: #2E7D32;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .hanzi-pinyin {
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+            margin-bottom: 4px;
+        }
+        
+        .hanzi-meaning {
+            font-size: 12px;
+            color: #888;
+            text-align: center;
+        }
+        
+        .example-section {
+            margin: 25px 0;
+            padding: 20px;
+            background-color: #F3E5F5;
+            border-radius: 5px;
+            border-left: 4px solid #9C27B0;
+        }
+        
+        .example-sentence {
+            font-size: 24px;
+            color: #333;
+            margin: 15px 0;
+            line-height: 1.6;
+        }
+        
+        .example-translation {
+            color: #666;
+            font-size: 15px;
+            font-style: italic;
+            margin-top: 10px;
+        }
+        
+        .hsk-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 20px;
+            letter-spacing: 0.5px;
+        }
+        
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        
+        .flip-note {
+            color: #999;
+            font-size: 12px;
+            font-style: italic;
+            margin-top: 30px;
+        }
+        
+        .full-definition {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        
+        .frequency-info {
+            color: #888;
+            font-size: 13px;
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #fafafa;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <h2>Vocabulary Card - Front</h2>
+        <div class="card">
+            <div class="card-type vocab-type">Vocabulary / Word</div>
+            <div class="vocab-word">吃饭</div>
+            <div class="flip-note">⬆️ Click to reveal reading and meaning</div>
+        </div>
+    </div>
+
+    <div class="preview-container">
+        <h2>Vocabulary Card - Back</h2>
+        <div class="card">
+            <div class="card-type vocab-type">Vocabulary / Word</div>
+            <div class="vocab-word">吃饭</div>
+            <div class="pinyin">chī fàn</div>
+            <div class="meaning">to eat (a meal)</div>
+            
+            <div class="back-content">
+                <div class="hanzi-breakdown">
+                    <div class="section-title">📝 Hanzi Breakdown</div>
+                    <div class="hanzi-list">
+                        <div class="hanzi-item">
+                            <div class="hanzi-char">吃</div>
+                            <div class="hanzi-pinyin">chī</div>
+                            <div class="hanzi-meaning">to eat</div>
+                        </div>
+                        <div class="hanzi-item">
+                            <div class="hanzi-char">饭</div>
+                            <div class="hanzi-pinyin">fàn</div>
+                            <div class="hanzi-meaning">rice, meal</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="example-section">
+                    <div class="section-title">💬 Example Sentence</div>
+                    <div class="example-sentence">
+                        你吃饭了吗？
+                    </div>
+                    <div class="example-translation">
+                        Have you eaten? (Common greeting)
+                    </div>
+                </div>
+                
+                <div class="full-definition">
+                    <strong>Full Definition:</strong> to have a meal/to eat/to make a living
+                </div>
+                
+                <div class="frequency-info">
+                    <span>📊 Frequency: #145 in HSK 1</span>
+                    <span class="hsk-badge">HSK 1</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="preview-container">
+        <h2>Example: Common Phrase</h2>
+        <div class="card">
+            <div class="card-type vocab-type">Vocabulary / Word</div>
+            <div class="vocab-word">你好</div>
+            <div class="pinyin">nǐ hǎo</div>
+            <div class="meaning">hello</div>
+            
+            <div class="back-content">
+                <div class="hanzi-breakdown">
+                    <div class="section-title">📝 Hanzi Breakdown</div>
+                    <div class="hanzi-list">
+                        <div class="hanzi-item">
+                            <div class="hanzi-char">你</div>
+                            <div class="hanzi-pinyin">nǐ</div>
+                            <div class="hanzi-meaning">you</div>
+                        </div>
+                        <div class="hanzi-item">
+                            <div class="hanzi-char">好</div>
+                            <div class="hanzi-pinyin">hǎo</div>
+                            <div class="hanzi-meaning">good</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="example-section">
+                    <div class="section-title">💬 Example Sentences</div>
+                    <div class="example-sentence">
+                        你好！很高兴见到你。
+                    </div>
+                    <div class="example-translation">
+                        Hello! Nice to meet you.
+                    </div>
+                </div>
+                
+                <div class="full-definition">
+                    <strong>Full Definition:</strong> hello/hi (literally: you good)
+                    <br><br>
+                    <strong>Cultural Note:</strong> The most common greeting in Chinese. Literally means "you (are) good."
+                </div>
+                
+                <div class="frequency-info">
+                    <span>📊 Frequency: #10 in HSK 1</span>
+                    <span class="hsk-badge">HSK 1</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="preview-container">
+        <h2>Example: Multi-character Word</h2>
+        <div class="card">
+            <div class="card-type vocab-type">Vocabulary / Word</div>
+            <div class="vocab-word">学习</div>
+            <div class="pinyin">xué xí</div>
+            <div class="meaning">to study, to learn</div>
+            
+            <div class="back-content">
+                <div class="hanzi-breakdown">
+                    <div class="section-title">📝 Hanzi Breakdown</div>
+                    <div class="hanzi-list">
+                        <div class="hanzi-item">
+                            <div class="hanzi-char">学</div>
+                            <div class="hanzi-pinyin">xué</div>
+                            <div class="hanzi-meaning">to study</div>
+                        </div>
+                        <div class="hanzi-item">
+                            <div class="hanzi-char">习</div>
+                            <div class="hanzi-pinyin">xí</div>
+                            <div class="hanzi-meaning">to practice</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="example-section">
+                    <div class="section-title">💬 Example Sentences</div>
+                    <div class="example-sentence">
+                        我每天学习中文。
+                    </div>
+                    <div class="example-translation">
+                        I study Chinese every day.
+                    </div>
+                </div>
+                
+                <div class="full-definition">
+                    <strong>Full Definition:</strong> to learn/to study/to practice/learning/study
+                    <br><br>
+                    <strong>Word Formation:</strong> study (学) + practice (习) = to study/learn
+                </div>
+                
+                <div class="frequency-info">
+                    <span>📊 Frequency: #319 in HSK 1</span>
+                    <span class="hsk-badge">HSK 1</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
