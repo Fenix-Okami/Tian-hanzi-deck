@@ -2,40 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- **README.md** - Rewrote to be more honest about v1 status
+  - Clearly marked v1 as a rough prototype
+  - Acknowledged known issues with mnemonics and card ordering
+  - Removed overly promotional language
+  - Added prominent TODO section highlighting needed improvements
+  - Significantly shortened documentation (80% reduction)
+
 ## [1.0.0] - 2025-10-08
 
-### 🎉 Initial Release - Tian Hanzi Deck v1
+### ⚠️ Prototype Release - Tian Hanzi Deck v1
+
+**Note:** This is an experimental prototype release. Mnemonics are auto-generated and card ordering needs refinement. Use with caution.
 
 #### Added
-- **Complete deck with 3,428 cards**
+- **Prototype deck with 3,428 cards**
   - 285 Radical cards
   - 1,500 Hanzi cards (top frequency characters)
   - 1,643 Vocabulary cards (high-frequency words)
 
 - **Automated generation using Hanzipy**
-  - `generate_tian_v1.py` - Generates data from frequency lists
-  - `create_tian_v1_deck.py` - Builds Anki package
-  - `tian_v1_data.py` - Generated data file (26,000+ lines)
+  - `generate_tian_v1.py` / `generate_tian_v1_fast.py` - Data generation
+  - `create_deck_from_parquet.py` - Builds Anki package
+  - `parquet_utils.py` - Data utilities
   - `Tian_Hanzi_Deck_v1.apkg` - Ready-to-import Anki deck
-
-- **Comprehensive documentation**
-  - `QUICK_START_GUIDE.md` - User-friendly getting started guide
-  - `TIAN_V1_RELEASE_NOTES.md` - Complete deck information
-  - `TIAN_V1_SUMMARY.md` - Overview of what was built
-  - `HANZIPY_REFERENCE_GUIDE.md` - Hanzipy library reference
-  - Updated `README.md` with v1 information
 
 - **Frequency-based character selection**
   - Uses Jun Da Character Frequency List
-  - Covers top 1500 most common characters (~95% of texts)
+  - Covers top 1500 most common characters
   - Vocabulary sorted by Leiden corpus frequency
 
 - **Radical decomposition**
   - Automatic extraction of 285 unique radicals
-  - Radical meanings and mnemonics
   - Component breakdown for each character
 
-- **Mnemonic support**
+- **Auto-generated mnemonics** (needs improvement)
   - Memory aids for all radicals
   - Meaning mnemonics for characters
   - Reading mnemonics for pronunciation
@@ -45,16 +49,18 @@ All notable changes to this project will be documented in this file.
 - Three-tier learning structure (Radicals → Hanzi → Vocabulary)
 - WaniKani-inspired card design
 - Color-coded card types (Blue/Pink/Purple)
-- Clean, minimal interface
-- Ready-to-import Anki package
+- Parquet data format for efficient storage
+
+#### Known Issues
+- Mnemonics are auto-generated and often not optimized for memorability
+- Card ordering algorithm needs refinement for better learning progression
+- Quality varies significantly across cards
 
 #### Technical
-- Python 3.11 support
+- Python 3.11+ support
 - Integration with Hanzipy library
-- Uses genanki 0.13.1 for Anki package generation
-- Automatic quote escaping in generated data
-- Data validation scripts
-- Modular, extensible framework
+- Uses genanki for Anki package generation
+- Parquet format for data storage
 
 #### Data Sources
 - CC-CEDICT for definitions
