@@ -34,6 +34,57 @@ except ImportError:
     sys.exit(1)
 
 
+def clean_surname_from_definition(definition: str) -> tuple[str, bool]:
+    """
+    Remove surname references from definition and return cleaned text with surname flag.
+    
+    Args:
+        definition: The original definition text
+        
+    Returns:
+        Tuple of (cleaned_definition, is_surname)
+    """
+    if not definition:
+        return definition, False
+    
+    is_surname = False
+    parts = []
+    
+    # Split by semicolons to handle multiple meanings
+    for part in definition.split(';'):
+        part = part.strip()
+        
+        # Check if this part is a surname reference
+        if part.lower().startswith('surname '):
+            is_surname = True
+            continue  # Skip this part
+        
+        # Check for inline surname references like "China/Chinese/surname Zhong"
+        if 'surname ' in part.lower():
+            is_surname = True
+            # Split by slash and filter out surname parts
+            subparts = part.split('/')
+            cleaned_subparts = []
+            for subpart in subparts:
+                subpart = subpart.strip()
+                if not subpart.lower().startswith('surname '):
+                    cleaned_subparts.append(subpart)
+            if cleaned_subparts:
+                parts.append('/'.join(cleaned_subparts))
+        else:
+            parts.append(part)
+    
+    # Join remaining parts
+    cleaned = '; '.join(parts) if parts else ''
+    
+    # Clean up extra whitespace and trailing punctuation
+    cleaned = cleaned.strip()
+    if cleaned.endswith(';'):
+        cleaned = cleaned[:-1].strip()
+    
+    return cleaned, is_surname
+
+
 class HSKDeckBuilder:
     """Build a deck based on HSK levels with productive component analysis"""
     
@@ -91,25 +142,32 @@ class HSKDeckBuilder:
                         pinyin = numbered_to_accented(first_def.get('pinyin', ''))
                         # Get all definitions, separated by semicolons
                         all_meanings = []
+                        is_surname = False
                         for def_entry in definitions:
                             def_text = def_entry.get('definition', '')
                             if def_text:
                                 all_meanings.append(def_text)
-                        meaning = '; '.join(all_meanings) if all_meanings else ''
+                        
+                        # Clean surname references from meanings
+                        combined_meaning = '; '.join(all_meanings) if all_meanings else ''
+                        meaning, is_surname = clean_surname_from_definition(combined_meaning)
                     else:
                         pinyin = ''
                         meaning = ''
+                        is_surname = False
                 except (KeyError, Exception):
                     # Word not in dictionary - skip definitions
                     pinyin = ''
                     meaning = ''
+                    is_surname = False
                 
                 vocab_entry = {
                     'word': word,
                     'hsk_level': level,
                     'frequency_position': position,
                     'pinyin': pinyin,
-                    'meaning': meaning
+                    'meaning': meaning,
+                    'is_surname': is_surname
                 }
                 all_vocab.append(vocab_entry)
             
@@ -195,7 +253,10 @@ class HSKDeckBuilder:
                 def_text = def_entry.get('definition', '')
                 if def_text:
                     all_meanings.append(def_text)
-            meaning = '; '.join(all_meanings) if all_meanings else ''
+            
+            # Clean surname references from meanings
+            combined_meaning = '; '.join(all_meanings) if all_meanings else ''
+            meaning, is_surname = clean_surname_from_definition(combined_meaning)
             
             # Get decomposition (components/radicals)
             try:
@@ -220,7 +281,8 @@ class HSKDeckBuilder:
                 'meaning': meaning,
                 'components': components,
                 'component_count': len(components),
-                'hsk_level': hsk_level
+                'hsk_level': hsk_level,
+                'is_surname': is_surname
             }
             
             processed += 1
@@ -306,7 +368,8 @@ class HSKDeckBuilder:
                     'meaning': data['meaning'],
                     'components': '|'.join(data['components']),
                     'component_count': data['component_count'],
-                    'hsk_level': hsk_level
+                    'hsk_level': hsk_level,
+                    'is_surname': data.get('is_surname', False)
                 })
             
             hanzi_df = pd.DataFrame(hanzi_list)

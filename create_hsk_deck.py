@@ -32,6 +32,9 @@ except ImportError as e:
     print("  pip install -r requirements.txt")
     sys.exit(1)
 
+# Import shared utility functions
+from card_utils import create_ruby_text, format_components_with_meanings
+
 # Load HSK data from Parquet files
 print("📂 Loading HSK 1-3 data from Parquet files...")
 try:
@@ -44,60 +47,6 @@ except Exception as e:
     print("\nMake sure to generate data files first:")
     print("  python generate_hsk_deck.py")
     sys.exit(1)
-
-def create_ruby_text(word, pinyin):
-    """
-    Create HTML ruby text with pinyin above each character.
-    Splits multi-syllable pinyin and pairs with each character.
-    
-    Example: create_ruby_text("故事", "gù shi") 
-    Returns: <ruby><rb>故</rb><rt>gù</rt></ruby><ruby><rb>事</rb><rt>shi</rt></ruby>
-    """
-    if not word or not pinyin:
-        return word
-    
-    # Split pinyin by spaces
-    pinyin_parts = pinyin.strip().split()
-    characters = list(word)
-    
-    # If we have the same number of pinyin parts and characters, pair them
-    if len(pinyin_parts) == len(characters):
-        ruby_parts = []
-        for char, pin in zip(characters, pinyin_parts):
-            ruby_parts.append(f'<ruby><rb class="vocab-char">{char}</rb><rt class="pinyin-reading">{pin}</rt></ruby>')
-        return ''.join(ruby_parts)
-    else:
-        # Fallback: show all pinyin above entire word
-        return f'<ruby><rb class="vocab-word">{word}</rb><rt class="pinyin-reading">{pinyin}</rt></ruby>'
-
-def format_components_with_meanings(components_str, radicals_df):
-    """
-    Format components with their meanings.
-    
-    Example: "一|口|丨" -> "一 (one), 口 (mouth), 丨 (line)"
-    """
-    if not components_str or pd.isna(components_str):
-        return "No components"
-    
-    components = str(components_str).split('|')
-    formatted_parts = []
-    
-    for comp in components:
-        comp = comp.strip()
-        if not comp:
-            continue
-        # Look up meaning in radicals dataframe
-        radical_row = radicals_df[radicals_df['radical'] == comp]
-        if not radical_row.empty:
-            meaning = radical_row.iloc[0]['meaning']
-            # Truncate long meanings
-            if len(meaning) > 30:
-                meaning = meaning[:27] + '...'
-            formatted_parts.append(f"{comp} ({meaning})")
-        else:
-            formatted_parts.append(comp)
-    
-    return ', '.join(formatted_parts) if formatted_parts else "No components"
 
 # Define unique model IDs for each card type
 RADICAL_MODEL_ID = random.randrange(1 << 30, 1 << 31)
@@ -127,13 +76,12 @@ radical_model = genanki.Model(
             'qfmt': '''
                 <div class="card-type radical-type">Radical • Level {{Level}}</div>
                 <div class="character radical-char">{{Radical}}</div>
-                <div class="prompt">What does this radical mean?</div>
             ''',
             'afmt': '''
                 {{FrontSide}}
                 <hr id="answer">
                 <div class="meaning radical-meaning">{{Meaning}}</div>
-                <div class="productivity">Used in {{Productivity}} characters</div>
+                <div class="productivity">appears in {{Productivity}} hanzi</div>
                 <div class="mnemonic">{{Mnemonic}}</div>
             ''',
         },

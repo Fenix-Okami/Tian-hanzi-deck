@@ -1,205 +1,171 @@
-# 天
-## T.I.A.N Hanzi Deck - Training in Asian Notation
+# 天 Tian Hanzi Deck
+## Training in Asian Notation
 
-A WaniKani-inspired Anki deck for learning Chinese characters with mnemonics. I was pushed to make this when I personally found Hanzihero and Pandanese lacking for my personal tastes
+An Anki deck for learning Chinese characters using dependency-based progression. Built from HSK 1-3 vocabulary with component productivity analysis.
 
-## ⚠️ Status: v1 is a Rough Prototype
+## 📋 Overview
 
-**Version 1** is an experimental prototype with 3,428 cards (285 radicals, 1500 hanzi, 1643 vocabulary). It's functional but has significant limitations:
+This deck teaches Chinese characters by learning components before the characters that use them. Based on HSK 1-3 vocabulary (899 characters, 2,227 words, 233 productive radicals).
 
-### Known Issues
-- **Mnemonics need work**: Many are auto-generated and not optimized for memorability
-- **Card ordering needs refinement**: Current algorithm could be improved for better learning progression
-- **Quality varies**: Some cards are better than others
+### 🎴 Deck Structure
 
-**Use at your own risk.** This is a proof-of-concept, not a polished learning tool.
+- **233 Radicals** - Component building blocks (brown cards)
+- **899 Hanzi** - Characters from HSK 1-3 (green cards)
+- **2,227 Vocabulary** - HSK 1-3 words (blue cards)
+- **50 Levels** - Sorted by dependencies
 
-## Quick Start
+### 🎯 Learning Method
 
-1. Download `anki_deck/Tian_Hanzi_Deck_v1.apkg`
-2. Import into [Anki](https://apps.ankiweb.net)
-3. Start studying
+Each level teaches components before complex characters:
+1. Learn 5 radicals
+2. Learn characters that use those radicals
+3. Learn words that use those characters
 
-## What's Included
+## 🚀 Usage
 
-- **285 Radicals** - Building blocks of characters (5 per level, 57 levels)
-- **1500 Hanzi** - Top characters by frequency (sorted by radical dependencies)
-- **1643 Vocabulary** - Common words (sorted by hanzi dependencies)
+### Import the Deck
 
-### Learning Progression
+1. Download `anki_deck/HSK_1-3_Hanzi_Deck.apkg`
+2. Import into Anki (File → Import)
+3. Study cards in order
 
-The deck uses **dependency-based sorting** to ensure you learn components before complex characters:
-
-1. **Radicals First**: 5 radicals per level (Levels 1-57)
-2. **Hanzi Next**: Each character only uses radicals from earlier levels
-3. **Vocabulary Last**: Each word only uses hanzi from earlier levels
-
-**Example:**
-- Level 1: Learn radicals 白, 勹, 丶, 一, 日
-- Level 1: Then learn hanzi that use only these radicals: 的, 一, 日, 白, 百, 旦
-- Level 1: Then learn vocabulary using these hanzi: 一旦
-
-This creates a natural learning curve where you always understand the components of what you're learning.
-
-## For Developers
-
-### Requirements
+### Generate from Source
 
 ```bash
 pip install -r requirements.txt
+bash run_hsk_pipeline.sh
 ```
 
-### HSK-Based Deck Generation (Default ⭐)
+Manual steps:
+```bash
+python generate_hsk_deck.py           # Extract HSK data
+python sort_hsk_by_dependencies.py    # Assign dependency levels
+python create_hsk_deck.py             # Build Anki deck
+```
 
-**HSK 1-3 is now the default approach!** Generate targeted decks based on HSK levels with productive component analysis:
+## � Data Source
+
+The deck extracts all characters from HSK 1-3 vocabulary, then identifies which components appear most frequently. This results in:
+
+- 899 characters (only those used in HSK 1-3 words)
+- 2,227 vocabulary entries (complete HSK 1-3 list)
+- 233 components (sorted by productivity/usage count)
+
+## 🔄 Dependency System
+
+Cards are organized so components are learned before the characters that use them:
+
+**Level Distribution:**
+- Levels 1-47: Radicals (5 per level)
+- Levels 2-48: Hanzi (only uses earlier radicals)
+- Levels 3-50: Vocabulary (only uses earlier hanzi)
+
+**Example:**
+```
+Level 1: 一 (one), 口 (mouth), 丨 (line), 丶 (dot)
+Level 2: 中 (口 + 丨)
+Level 3: 中 (word)
+```
+
+**Sort Order:**
+Cards within each level are sorted by: Level → HSK tier (1/2/3) → Frequency or component count
+
+## 🎴 Card Layout
+
+### Radical Cards (Brown)
+- Front: Component character
+- Back: Meaning, usage count, productivity score
+
+### Hanzi Cards (Green)
+- Front: Character
+- Back: Pinyin, meaning, two mnemonics, components list with meanings
+
+### Vocabulary Cards (Blue)
+- Front: Word
+- Back: Per-character pinyin (ruby text), meaning, example, character breakdown
+
+**Notes:**
+- Surname references removed from meanings, stored as `is_surname` field
+- Components shown with meanings: "一 (one), 口 (mouth)"
+- Pinyin displayed above each character for vocabulary
+
+## � Scripts
+
+**Pipeline:**
+- `generate_hsk_deck.py` - Extract data from HSK lists
+- `sort_hsk_by_dependencies.py` - Assign dependency levels
+- `create_hsk_deck.py` - Build Anki package
+- `run_hsk_pipeline.sh` - Run all steps
+
+**Analysis:**
+- `analyze_hsk_components.py` - Component productivity
+- `show_levels.py` - Level distribution
+- `verify_sorting.py` - Dependency verification
+- `create_samples.py` - Sample data and HTML previews
+
+**Utilities:**
+- `pinyin_converter.py` - Pinyin conversion
+- `parquet_utils.py` - Data management
+
+## � Data Files
+
+Generated in both CSV and Parquet formats:
+
+**vocabulary.csv/parquet**
+```csv
+word,hsk_level,frequency_position,pinyin,meaning,is_surname,level
+```
+
+**hanzi.csv/parquet**
+```csv
+hanzi,pinyin,meaning,components,component_count,hsk_level,is_surname,level
+```
+
+**radicals.csv/parquet**
+```csv
+radical,meaning,usage_count,level
+```
+
+**Data Notes:**
+- Components: Pipe-separated (`口|丨`)
+- Surnames: Boolean flag, text removed from meaning
+- HSK levels: Integer type (Int64)
+
+## � Statistics
+
+- 3,359 total cards (233 radicals + 899 hanzi + 2,227 vocabulary)
+- 50 dependency-based levels
+- Average per level: 5 radicals, 19 hanzi, 46 vocabulary
+
+## 🔍 Preview Cards
 
 ```bash
-# Complete pipeline (3 steps)
-python generate_hsk_deck.py           # Step 1: Generate data (899 hanzi, 2227 vocab, 233 radicals)
-python sort_hsk_by_dependencies.py    # Step 2: Sort by dependencies into levels
-python create_hsk_deck.py             # Step 3: Create Anki .apkg file
+python create_samples.py
 ```
 
-**Output files:**
-- `data/vocabulary.csv/parquet` - 2,227 HSK 1-3 words
-- `data/hanzi.csv/parquet` - 899 characters  
-- `data/radicals.csv/parquet` - 233 productive components
-- `anki_deck/HSK_1-3_Hanzi_Deck.apkg` - Ready-to-import Anki deck
+Opens HTML previews in `data/` folder with toggle buttons for front/back viewing.
 
-**Why HSK-based is better:**
-- ✅ 40% fewer characters than arbitrary frequency (899 vs 1500)
-- ✅ 36% more vocabulary (2227 vs 1643)  
-- ✅ Direct HSK exam alignment
-- ✅ Scientifically calculated component productivity scores
-- ✅ Learn only what you need for your HSK level
-- ✅ Dependency-based learning progression
+## �📖 Documentation
 
-**Analysis tools:**
-```bash
-python analyze_hsk_components.py      # View component productivity analysis
-python create_samples.py              # Create sample CSVs and HTML card previews
-python show_levels.py                 # Display level distribution
-python verify_sorting.py              # Verify dependency sorting
-```
+- [HSK_PIPELINE_QUICKSTART.md](HSK_PIPELINE_QUICKSTART.md) - Pipeline guide
+- [HSK_DECK_GENERATION_GUIDE.md](HSK_DECK_GENERATION_GUIDE.md) - Methodology
+- [LEVEL_SYSTEM.md](LEVEL_SYSTEM.md) - Dependency levels
+- [PRODUCTIVE_COMPONENTS_GUIDE.md](PRODUCTIVE_COMPONENTS_GUIDE.md) - Component scoring
+- [CHANGELOG.md](CHANGELOG.md) - Version history
 
-See [HSK_DECK_GENERATION_GUIDE.md](HSK_DECK_GENERATION_GUIDE.md) for details.
+## ⚙️ Requirements
 
-### Generate the Deck (Original Method)
+- Python 3.11+
+- Dependencies: pandas, pyarrow, hanzipy, genanki
 
-**Quick Method (Recommended):**
+Pipeline takes ~45 seconds total (30s generate + 5s sort + 10s create)
 
-```bash
-# Windows
-run_pipeline.bat
+## 📝 License & Credits
 
-# macOS/Linux
-bash run_pipeline.sh
-```
+**License:** MIT - See [LICENSE](LICENSE)
 
-**Manual Method (Step by Step):**
+**Data Source:** HSK vocabulary from [krmanik/HSK-3.0](https://github.com/krmanik/HSK-3.0) (CC BY-SA 4.0)
 
-```bash
-# Step 1: Generate data from Hanzipy (~54 seconds)
-python generate_tian_v1_fast.py
+**Libraries:** [hanzipy](https://github.com/Synkied/hanzipy), [genanki](https://github.com/kerrickstaley/genanki)
 
-# Step 2: Sort by dependencies (~1 second)
-python sort_by_dependencies.py
-
-# Step 3: Create Anki package (~10 seconds)
-python create_deck_from_parquet.py
-```
-
-**View Level Details:**
-
-```bash
-python show_levels.py        # See first 10 levels
-python verify_sorting.py     # Verify dependencies are correct
-```
-
-**HSK Scoring System:**
-
-```bash
-python hsk_scorer.py         # Generate HSK-based scores for vocabulary and hanzi
-```
-
-The HSK scorer assigns priority scores based on HSK level and frequency rankings. See [HSK_SCORING_GUIDE.md](HSK_SCORING_GUIDE.md) for details.
-
-### Project Structure
-
-```
-├── anki_deck/
-│   ├── Tian_Hanzi_Deck_v1.apkg         # Original deck (v1)
-│   └── HSK_1-3_Hanzi_Deck.apkg         # HSK 1-3 deck (NEW!)
-├── data/
-│   ├── vocabulary.csv/parquet          # HSK 1-3: 2,227 words
-│   ├── hanzi.csv/parquet               # HSK 1-3: 899 characters
-│   ├── radicals.csv/parquet            # HSK 1-3: 233 productive components
-│   └── HSK-3.0/                        # HSK 3.0 source data
-│
-├── Core HSK Pipeline (Use these! ⭐)
-│   ├── generate_hsk_deck.py            # 1. Generate HSK 1-3 data
-│   ├── sort_hsk_by_dependencies.py     # 2. Sort by dependencies
-│   ├── create_hsk_deck.py              # 3. Create Anki deck
-│   └── analyze_hsk_components.py       # Analyze productivity
-│
-├── Utilities
-│   ├── pinyin_converter.py             # Pinyin conversion utility
-│   ├── parquet_utils.py                # Data management utility
-│   ├── show_levels.py                  # View level distribution
-│   ├── verify_sorting.py               # Verify dependencies
-│   └── create_samples.py               # Create sample CSVs and HTML card previews
-│
-├── Optional HSK Tools
-│   ├── hsk_scorer.py                   # Score all HSK levels (1-9)
-│   └── analyze_hsk_scores.py           # Score distribution analysis
-│
-└── Legacy V1 Scripts
-    ├── generate_tian_v1_fast.py        # Original frequency-based generator
-    ├── sort_by_dependencies.py         # Original dependency sorter
-    ├── create_deck_from_parquet.py     # Original deck creator
-    └── analyze_productive_components.py # Old analysis tool
-```
-
-## Documentation
-
-- 📖 **[HSK Pipeline Quick Start](HSK_PIPELINE_QUICKSTART.md)** - Complete step-by-step guide
-- 📊 **[HSK Deck Generation Guide](HSK_DECK_GENERATION_GUIDE.md)** - HSK methodology details
-- 🔧 **[Script Consolidation Plan](SCRIPT_CONSOLIDATION_PLAN.md)** - Script organization reference
-- 🎴 **[Card Preview Guide](CARD_PREVIEW_GUIDE.md)** - Card design and styling
-- 📈 **[HSK Scoring Guide](HSK_SCORING_GUIDE.md)** - Scoring system explanation
-- 🎯 **[Level System](LEVEL_SYSTEM.md)** - Dependency-based learning progression
-
-## Roadmap / TODO
-
-### ✅ Completed for HSK 1-3
-1. ✅ **HSK-based deck generation** - Focus on HSK 1-3 vocabulary
-2. ✅ **Productive component analysis** - Scientific radical selection
-3. ✅ **Dependency-based sorting** - Learn components before characters
-4. ✅ **Level system** - Progressive learning with 5 radicals per level
-5. ✅ **HSK level tags** - Filter by HSK 1, 2, or 3
-6. ✅ **Themed card designs** - Brown (radicals), Green (hanzi), Blue (vocabulary)
-
-### Future Ideas
-- Audio pronunciations
-- Stroke order animations
-- Better example sentences
-- Traditional character support
-- Improved mnemonics
-- HSK 4-6 expansion
-
-## Acknowledgments
-
-**Data Sources:**
-- [Hanzipy](https://github.com/Synkied/hanzipy) - Python libary to Hanzi
-- [Hanzi](https://github.com/nieldlr/hanzi) - Character decomposition and radical data
-- [HSK-3.0](https://github.com/krmanik/HSK-3.0) by [@krmanik](https://github.com/krmanik) - HSK 3.0 word lists, Hanzi, and frequency data (CC BY-SA 4.0)
-- CC-CEDICT - Dictionary definitions
-- Jun Da - Character frequency data
-
-**Inspiration:**
-- WaniKani - Mnemonic-based methodology
-- Heisig's Remembering Hanzi
-
-## License
-
-Open source for personal and educational use. Data sources have their own licenses.
+**Inspired by:** [WaniKani](https://www.wanikani.com/), Heisig's Remembering Hanzi

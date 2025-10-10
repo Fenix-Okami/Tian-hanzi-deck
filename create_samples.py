@@ -17,6 +17,9 @@ except ImportError:
     print("Please run: pip install pandas pyarrow")
     sys.exit(1)
 
+# Import shared utility functions
+from card_utils import create_ruby_text, format_components_with_meanings
+
 # Set seed for reproducibility
 random.seed(42)
 
@@ -94,63 +97,6 @@ print("  • data/vocabulary_sample.csv")
 print("\n" + "=" * 60)
 print("🎴 Generating HTML card previews...")
 print("=" * 60)
-
-def create_ruby_text_html(word, pinyin):
-    """
-    Create HTML ruby text with pinyin above each character.
-    Splits multi-syllable pinyin and pairs with each character.
-    """
-    if not word or not pinyin:
-        return word
-    
-    # Split pinyin by spaces
-    pinyin_parts = pinyin.strip().split()
-    characters = list(word)
-    
-    # If we have the same number of pinyin parts and characters, pair them
-    if len(pinyin_parts) == len(characters):
-        ruby_parts = []
-        for char, pin in zip(characters, pinyin_parts):
-            ruby_parts.append(f'<ruby><rb class="vocab-char">{char}</rb><rt class="pinyin-reading">{pin}</rt></ruby>')
-        return ''.join(ruby_parts)
-    else:
-        # Fallback: show all pinyin above entire word
-        return f'<ruby><rb class="word">{word}</rb><rt class="pinyin-reading">{pinyin}</rt></ruby>'
-
-def format_components_with_meanings(components_str, radicals_df):
-    """
-    Format components with their meanings.
-    Example: "一|口|丨" becomes "一 (one), 口 (mouth), 丨 (line)"
-    """
-    if not components_str or components_str == 'Unknown':
-        return 'Unknown'
-    
-    # Split components by | or comma
-    if '|' in components_str:
-        components = [c.strip() for c in components_str.split('|')]
-    else:
-        components = [c.strip() for c in components_str.split(',')]
-    
-    formatted_parts = []
-    for component in components:
-        if not component:
-            continue
-        
-        # Look up meaning in radicals dataframe
-        meaning = None
-        radical_row = radicals_df[radicals_df['radical'] == component]
-        if not radical_row.empty:
-            meaning = radical_row.iloc[0].get('meaning', '')
-            # Truncate long meanings
-            if meaning and len(meaning) > 30:
-                meaning = meaning[:27] + '...'
-        
-        if meaning:
-            formatted_parts.append(f"{component} ({meaning})")
-        else:
-            formatted_parts.append(component)
-    
-    return ', '.join(formatted_parts)
 
 def create_radical_card_html(radical_data):
     """Generate HTML for a radical card preview"""
@@ -254,15 +200,13 @@ def create_radical_card_html(radical_data):
         <div class="front">
             <div class="card-type">Radical • Level {radical_data.get('level', '?')}</div>
             <div class="character">{radical_data.get('radical', '')}</div>
-            <div class="prompt">What does this radical mean?</div>
         </div>
         <div class="back">
             <div class="card-type">Radical • Level {radical_data.get('level', '?')}</div>
             <div class="character">{radical_data.get('radical', '')}</div>
-            <div class="prompt">What does this radical mean?</div>
             <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
             <div class="meaning">{radical_data.get('meaning', 'Unknown')}</div>
-            <div class="productivity">Used in {radical_data.get('usage_count', 0)} characters</div>
+            <div class="productivity">appears in {radical_data.get('usage_count', 0)} hanzi</div>
             <div class="mnemonic">Remember this radical!</div>
             <div class="info">Brown theme • Productivity-based sorting</div>
         </div>
@@ -611,7 +555,7 @@ def create_vocab_card_html(vocab_data):
         <div class="back">
             <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Level {vocab_data.get('level', '?')}</div>
             <div class="word-with-reading">
-                {create_ruby_text_html(vocab_data.get('word', ''), vocab_data.get('pinyin', ''))}
+                {create_ruby_text(vocab_data.get('word', ''), vocab_data.get('pinyin', ''))}
             </div>
             <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
             <div class="meaning">{vocab_data.get('meaning', 'Unknown')}</div>

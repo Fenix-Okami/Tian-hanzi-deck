@@ -62,13 +62,13 @@ def assign_radical_levels(radicals_df):
 def parse_radicals_from_hanzi(radicals_str):
     """
     Parse the radicals string from hanzi data.
-    Format: "radical1 + radical2 + radical3"
+    Format: "radical1|radical2|radical3" (pipe-separated)
     """
     if pd.isna(radicals_str) or not radicals_str:
         return []
     
-    # Split by " + " and clean up
-    parts = radicals_str.split(' + ')
+    # Split by "|" and clean up
+    parts = radicals_str.split('|')
     return [r.strip() for r in parts if r.strip()]
 
 
@@ -110,11 +110,16 @@ def assign_hanzi_levels(hanzi_df, radical_to_level, radical_levels):
     
     hanzi_df['level'] = hanzi_levels
     
-    # Sort by level, then by hsk_score (higher scores first)
-    if 'hsk_score' in hanzi_df.columns:
-        hanzi_df = hanzi_df.sort_values(['level', 'hsk_score'], ascending=[True, False])
-    else:
-        hanzi_df = hanzi_df.sort_values('level')
+    # Sort by: 1) level (ascending), 2) hsk_level (ascending), 3) component_count (ascending - simpler first)
+    sort_columns = ['level', 'hsk_level']
+    sort_ascending = [True, True]
+    
+    # Add component_count as a tiebreaker if available (simpler characters first)
+    if 'component_count' in hanzi_df.columns:
+        sort_columns.append('component_count')
+        sort_ascending.append(True)
+    
+    hanzi_df = hanzi_df.sort_values(sort_columns, ascending=sort_ascending)
     
     # Reset index after sorting
     hanzi_df = hanzi_df.reset_index(drop=True)
@@ -189,11 +194,16 @@ def assign_vocab_levels(vocab_df, hanzi_to_level, max_hanzi_level):
     
     vocab_df['level'] = vocab_levels
     
-    # Sort by level, then by hsk_score (higher scores first)
-    if 'hsk_score' in vocab_df.columns:
-        vocab_df = vocab_df.sort_values(['level', 'hsk_score'], ascending=[True, False])
-    else:
-        vocab_df = vocab_df.sort_values('level')
+    # Sort by: 1) level (ascending), 2) hsk_level (ascending), 3) frequency_position (ascending - more frequent first)
+    sort_columns = ['level', 'hsk_level']
+    sort_ascending = [True, True]
+    
+    # Add frequency_position as final tiebreaker if available (lower position = more frequent)
+    if 'frequency_position' in vocab_df.columns:
+        sort_columns.append('frequency_position')
+        sort_ascending.append(True)
+    
+    vocab_df = vocab_df.sort_values(sort_columns, ascending=sort_ascending)
     
     vocab_df = vocab_df.reset_index(drop=True)
     
