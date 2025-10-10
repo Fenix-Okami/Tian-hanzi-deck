@@ -89,7 +89,13 @@ class HSKDeckBuilder:
                     if definitions:
                         first_def = definitions[0]
                         pinyin = numbered_to_accented(first_def.get('pinyin', ''))
-                        meaning = first_def.get('definition', '')
+                        # Get all definitions, separated by semicolons
+                        all_meanings = []
+                        for def_entry in definitions:
+                            def_text = def_entry.get('definition', '')
+                            if def_text:
+                                all_meanings.append(def_text)
+                        meaning = '; '.join(all_meanings) if all_meanings else ''
                     else:
                         pinyin = ''
                         meaning = ''
@@ -112,6 +118,36 @@ class HSKDeckBuilder:
         self.vocabulary = all_vocab
         print(f"✅ Loaded {len(all_vocab)} vocabulary words\n")
         return all_vocab
+    
+    def load_hsk_hanzi_levels(self) -> Dict[str, int]:
+        """
+        Load HSK Hanzi files to determine which HSK level each hanzi belongs to.
+        
+        Returns:
+            Dictionary mapping hanzi to their HSK level
+        """
+        print("📖 Loading HSK Hanzi level mappings...")
+        hanzi_to_hsk = {}
+        hanzi_folder = self.hsk_dir / "HSK Hanzi"
+        
+        for level in self.hsk_levels:
+            file_path = hanzi_folder / f"HSK {level}.txt"
+            
+            if not file_path.exists():
+                print(f"  ⚠️  Warning: {file_path} not found")
+                continue
+            
+            with open(file_path, 'r', encoding='utf-8-sig') as f:
+                hanzi_chars = [line.strip() for line in f if line.strip()]
+            
+            for char in hanzi_chars:
+                if char not in hanzi_to_hsk:  # Only set if not already assigned (prefer lower HSK level)
+                    hanzi_to_hsk[char] = level
+            
+            print(f"  ✓ HSK {level}: {len(hanzi_chars)} hanzi")
+        
+        print(f"✅ Loaded HSK levels for {len(hanzi_to_hsk)} hanzi\n")
+        return hanzi_to_hsk
     
     def extract_hanzi_from_vocabulary(self) -> Set[str]:
         """
@@ -152,8 +188,14 @@ class HSKDeckBuilder:
                 continue
             
             first_def = definitions[0]
-            meaning = first_def.get('definition', '')
             pinyin = numbered_to_accented(first_def.get('pinyin', ''))
+            # Get all definitions, separated by semicolons
+            all_meanings = []
+            for def_entry in definitions:
+                def_text = def_entry.get('definition', '')
+                if def_text:
+                    all_meanings.append(def_text)
+            meaning = '; '.join(all_meanings) if all_meanings else ''
             
             # Get decomposition (components/radicals)
             try:
@@ -169,12 +211,16 @@ class HSKDeckBuilder:
             except Exception:
                 components = []
             
+            # Get HSK level for this hanzi
+            hsk_level = self.hanzi_to_hsk.get(char, '')
+            
             hanzi_data[char] = {
                 'hanzi': char,
                 'pinyin': pinyin,
                 'meaning': meaning,
                 'components': components,
-                'component_count': len(components)
+                'component_count': len(components),
+                'hsk_level': hsk_level
             }
             
             processed += 1
@@ -247,15 +293,25 @@ class HSKDeckBuilder:
         if self.hanzi_data:
             hanzi_list = []
             for char, data in self.hanzi_data.items():
+                hsk_level = data.get('hsk_level', '')
+                # Ensure hsk_level is int or None for parquet compatibility
+                if hsk_level == '' or hsk_level is None:
+                    hsk_level = None
+                else:
+                    hsk_level = int(hsk_level)
+                
                 hanzi_list.append({
                     'hanzi': data['hanzi'],
                     'pinyin': data['pinyin'],
                     'meaning': data['meaning'],
                     'components': '|'.join(data['components']),
-                    'component_count': data['component_count']
+                    'component_count': data['component_count'],
+                    'hsk_level': hsk_level
                 })
             
             hanzi_df = pd.DataFrame(hanzi_list)
+            # Convert hsk_level to Int64 (nullable integer type)
+            hanzi_df['hsk_level'] = hanzi_df['hsk_level'].astype('Int64')
             hanzi_csv = output_path / "hanzi.csv"
             hanzi_parquet = output_path / "hanzi.parquet"
             hanzi_df.to_csv(hanzi_csv, index=False, encoding='utf-8')
@@ -320,19 +376,22 @@ def main():
     # Step 1: Load vocabulary from HSK 1-3
     builder.load_vocabulary()
     
-    # Step 2: Extract hanzi from vocabulary
+    # Step 2: Load HSK Hanzi level mappings
+    builder.hanzi_to_hsk = builder.load_hsk_hanzi_levels()
+    
+    # Step 3: Extract hanzi from vocabulary
     builder.extract_hanzi_from_vocabulary()
     
-    # Step 3: Process each hanzi (get definitions, components)
+    # Step 4: Process each hanzi (get definitions, components)
     builder.process_hanzi()
     
-    # Step 4: Calculate component productivity scores
+    # Step 5: Calculate component productivity scores
     builder.calculate_component_productivity()
     
-    # Step 5: Export data
+    # Step 6: Export data
     builder.export_data()
     
-    # Step 6: Print statistics
+    # Step 7: Print statistics
     builder.print_statistics()
     
     print("✅ HSK 1-3 Deck generation complete!")
