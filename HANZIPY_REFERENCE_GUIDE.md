@@ -396,6 +396,7 @@ Hanzipy uses data from the following sources:
 
 - **[CC-CEDICT](http://cc-cedict.org/wiki/)**: Dictionary definitions
 - **[Gavin Grover's Decomposition Data](http://cjkdecomp.codeplex.com/license)**: Character decomposition
+- **[Hanzi (nieldlr)](https://github.com/nieldlr/hanzi)**: Character decomposition and radical data
 - **[Leiden Word Frequency Data](http://lwc.daanvanesch.nl/legal.php)**: Word frequency corpus
 - **[Jun Da Character Frequency Data](http://lingua.mtsu.edu/chinese-computing/copyright.html)**: Character frequency
 

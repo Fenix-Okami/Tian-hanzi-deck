@@ -63,10 +63,11 @@ All notable changes to this project will be documented in this file.
 - Parquet format for data storage
 
 #### Data Sources
+- Hanzipy library for character analysis
+- Hanzi (nieldlr) for character decomposition and radical data
 - CC-CEDICT for definitions
 - Jun Da for character frequency
 - Leiden University for word frequency
-- Gavin Grover for character decomposition
 
 ---
 

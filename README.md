@@ -78,7 +78,8 @@ python create_deck_from_parquet.py
 ## Acknowledgments
 
 **Data Sources:**
-- [Hanzipy](https://github.com/Synkied/hanzipy) - Character analysis
+- [Hanzipy](https://github.com/Synkied/hanzipy) - Python libary to Hanzi
+- [Hanzi](https://github.com/nieldlr/hanzi) - Character decomposition and radical data
 - CC-CEDICT - Dictionary definitions
 - Jun Da - Character frequency data
 
