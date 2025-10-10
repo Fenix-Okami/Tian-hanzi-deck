@@ -49,9 +49,9 @@ except Exception as e:
 
 # Verify expected columns
 expected_cols = {
-    'radicals': ['tian_level', 'radical', 'meaning', 'usage_count'],
-    'hanzi': ['tian_level', 'hsk_level', 'hanzi', 'pinyin', 'meaning', 'components', 'component_count', 'is_surname'],
-    'vocabulary': ['tian_level', 'hsk_level', 'frequency_position', 'word', 'pinyin', 'meaning', 'is_surname']
+    'radicals': ['tian_level', 'radical', 'meaning', 'usage_count', 'stroke_count'],
+    'hanzi': ['tian_level', 'hsk_level', 'hanzi', 'pinyin', 'meaning', 'components', 'component_count', 'stroke_count', 'is_surname'],
+    'vocabulary': ['tian_level', 'hsk_level', 'frequency_position', 'word', 'pinyin', 'meaning', 'stroke_count', 'is_surname']
 }
 
 for name, df, cols in [('radicals', radicals_df, expected_cols['radicals']),

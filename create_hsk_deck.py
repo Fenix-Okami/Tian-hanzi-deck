@@ -263,16 +263,16 @@ if breakpoints_df is not None:
     vocab_df['tian_level'] = vocab_df['tian_level'].astype(int)
     
     # Reorder columns: tian_level first, then other important columns
-    # Radicals: tian_level, radical, meaning, usage_count
-    radical_cols = ['tian_level', 'radical', 'meaning', 'usage_count']
+    # Radicals: tian_level, radical, meaning, usage_count, stroke_count
+    radical_cols = ['tian_level', 'radical', 'meaning', 'usage_count', 'stroke_count']
     radicals_df = radicals_df[radical_cols]
     
-    # Hanzi: tian_level, hsk_level, hanzi, pinyin, meaning, components, component_count, is_surname
-    hanzi_cols = ['tian_level', 'hsk_level', 'hanzi', 'pinyin', 'meaning', 'components', 'component_count', 'is_surname']
+    # Hanzi: tian_level, hsk_level, hanzi, pinyin, meaning, components, component_count, stroke_count, is_surname
+    hanzi_cols = ['tian_level', 'hsk_level', 'hanzi', 'pinyin', 'meaning', 'components', 'component_count', 'stroke_count', 'is_surname']
     hanzi_df = hanzi_df[hanzi_cols]
     
-    # Vocabulary: tian_level, hsk_level, frequency_position, word, pinyin, meaning, is_surname
-    vocab_cols = ['tian_level', 'hsk_level', 'frequency_position', 'word', 'pinyin', 'meaning', 'is_surname']
+    # Vocabulary: tian_level, hsk_level, frequency_position, word, pinyin, meaning, stroke_count, is_surname
+    vocab_cols = ['tian_level', 'hsk_level', 'frequency_position', 'word', 'pinyin', 'meaning', 'stroke_count', 'is_surname']
     vocab_df = vocab_df[vocab_cols]
     
     # Save parquet files

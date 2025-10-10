@@ -33,6 +33,14 @@ except ImportError:
     print("  pip install hanzipy")
     sys.exit(1)
 
+try:
+    from strokes import strokes
+except ImportError:
+    print("❌ Error: strokes library is not installed")
+    print("\nTo install strokes, run:")
+    print("  pip install strokes")
+    sys.exit(1)
+
 
 def clean_surname_from_definition(definition: str) -> tuple[str, bool]:
     """
@@ -345,6 +353,20 @@ class HSKDeckBuilder:
         # Export vocabulary
         if self.vocabulary:
             vocab_df = pd.DataFrame(self.vocabulary)
+            
+            # Add stroke count for vocabulary words
+            print("  → Adding stroke counts to vocabulary...")
+            def get_vocab_strokes(word):
+                result = strokes(word)
+                # strokes() returns int for single char, list for multiple chars
+                if isinstance(result, int):
+                    return result
+                elif isinstance(result, list):
+                    return sum(result)
+                return 0
+            
+            vocab_df['stroke_count'] = vocab_df['word'].apply(get_vocab_strokes)
+            
             vocab_csv = output_path / "vocabulary.csv"
             vocab_parquet = output_path / "vocabulary.parquet"
             vocab_df.to_csv(vocab_csv, index=False, encoding='utf-8')
@@ -373,6 +395,11 @@ class HSKDeckBuilder:
                 })
             
             hanzi_df = pd.DataFrame(hanzi_list)
+            
+            # Add stroke count for hanzi
+            print("  → Adding stroke counts to hanzi...")
+            hanzi_df['stroke_count'] = hanzi_df['hanzi'].apply(lambda c: strokes(c))
+            
             # Convert hsk_level to Int64 (nullable integer type)
             hanzi_df['hsk_level'] = hanzi_df['hsk_level'].astype('Int64')
             hanzi_csv = output_path / "hanzi.csv"
@@ -391,6 +418,19 @@ class HSKDeckBuilder:
                 'component': 'radical',
                 'productivity_score': 'usage_count'
             })
+            
+            # Add stroke count for radicals
+            print("  → Adding stroke counts to radicals...")
+            # Handle special cases where radical might not be recognized
+            def get_radical_strokes(radical):
+                try:
+                    result = strokes(radical)
+                    return result if isinstance(result, int) else 0
+                except:
+                    return 0
+            
+            comp_df['stroke_count'] = comp_df['radical'].apply(get_radical_strokes)
+            
             radicals_csv = output_path / "radicals.csv"
             radicals_parquet = output_path / "radicals.parquet"
             comp_df.to_csv(radicals_csv, index=False, encoding='utf-8')
