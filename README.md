@@ -1,7 +1,29 @@
 # 天 Tian Hanzi Deck
 ## Training in Asian Notation
 
-An Anki deck for learning Chinese characters using dependency-based progression. Built from HSK 1-3 vocabulary with component productivity analysis.
+An Anki deck for learning Chinese cha## 📖 Scripts
+
+**Pipeline:**
+- `generate_hsk_deck.py` - Extract data from HSK lists
+- `sort_hsk_by_dependencies.py` - Assign dependency levels
+- `create_hsk_deck.py` - Build Anki package
+- `run_hsk_pipeline.sh` - Run all steps
+
+**Mnemonics (NEW!):**
+- `generate_mnemonics.py` - Generate AI-powered mnemonics with OpenAI
+- `run_mnemonic_generator.sh` - Quick start script
+- See [MNEMONIC_GENERATOR_GUIDE.md](MNEMONIC_GENERATOR_GUIDE.md) for details
+
+**Analysis:**
+- `analyze_hsk_components.py` - Component productivity
+- `show_levels.py` - Level distribution
+- `verify_sorting.py` - Dependency verification
+- `create_samples.py` - Sample data and HTML previews
+
+**Utilities:**
+- `pinyin_converter.py` - Pinyin conversion
+- `parquet_utils.py` - Data management
+- `card_utils.py` - Shared card formatting functionsendency-based progression. Built from HSK 1-3 vocabulary with component productivity analysis.
 
 ## 📋 Overview
 
