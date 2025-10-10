@@ -139,10 +139,14 @@ def apply_dynamic_levels(radicals_df, hanzi_df, vocab_df, breakpoints_df):
                     radical_to_level[radical] = level
     
     # Apply levels to radicals
+    print(f"   → Mapping {len(radical_to_level)} radicals to {len(set(radical_to_level.values()))} levels...")
     radicals_df['level'] = radicals_df['radical'].map(radical_to_level)
     
     # For any radicals without a level, assign to last level
     max_level = breakpoints_df['level'].max() if len(breakpoints_df) > 0 else 1
+    unmapped_count = radicals_df['level'].isna().sum()
+    if unmapped_count > 0:
+        print(f"   → Assigning {unmapped_count} unmapped radicals to level {max_level}")
     radicals_df['level'] = radicals_df['level'].fillna(max_level)
     
     # Apply levels to hanzi based on their components
@@ -203,6 +207,14 @@ def apply_dynamic_levels(radicals_df, hanzi_df, vocab_df, breakpoints_df):
 radicals_df, hanzi_df, vocab_df = apply_dynamic_levels(
     radicals_df, hanzi_df, vocab_df, breakpoints_df
 )
+
+# Optionally save the updated data with dynamic levels
+if breakpoints_df is not None:
+    print("💾 Saving updated data with dynamic levels...")
+    radicals_df.to_parquet('data/radicals.parquet', index=False)
+    hanzi_df.to_parquet('data/hanzi.parquet', index=False)
+    vocab_df.to_parquet('data/vocabulary.parquet', index=False)
+    print("   ✓ Saved updated parquet files\n")
 
 # Define unique model IDs for each card type
 RADICAL_MODEL_ID = random.randrange(1 << 30, 1 << 31)

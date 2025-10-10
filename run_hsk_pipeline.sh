@@ -17,7 +17,7 @@ if [ -d "venv" ]; then
 fi
 
 # Step 1: Generate HSK data
-echo "📊 Step 1/3: Generating HSK 1-3 data..."
+echo "📊 Step 1/2: Generating HSK 1-3 data..."
 echo "----------------------------------------"
 python generate_hsk_deck.py
 if [ $? -ne 0 ]; then
@@ -26,18 +26,11 @@ if [ $? -ne 0 ]; then
 fi
 echo ""
 
-# Step 2: Sort by dependencies
-echo "🔄 Step 2/3: Sorting by dependencies..."
-echo "----------------------------------------"
-python sort_hsk_by_dependencies.py
-if [ $? -ne 0 ]; then
-    echo "❌ Error in dependency sorting!"
-    exit 1
-fi
-echo ""
-
-# Step 3: Create Anki deck
-echo "📦 Step 3/3: Creating Anki deck..."
+# Step 2: Create Anki deck with dynamic breakpoint analysis
+# NOTE: We skip the old sort_hsk_by_dependencies.py because it uses fixed
+# levels (5 radicals per level). Instead, create_hsk_deck.py now runs
+# breakpoint analysis to determine optimal variable-sized levels.
+echo "📦 Step 2/2: Creating Anki deck with dynamic levels..."
 echo "----------------------------------------"
 python create_hsk_deck.py
 if [ $? -ne 0 ]; then
