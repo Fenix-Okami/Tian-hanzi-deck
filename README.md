@@ -51,15 +51,34 @@ pip install -r requirements.txt
 
 ### Generate the Deck
 
+**Quick Method (Recommended):**
+
 ```bash
-# Step 1: Generate data from Hanzipy
+# Windows
+run_pipeline.bat
+
+# macOS/Linux
+bash run_pipeline.sh
+```
+
+**Manual Method (Step by Step):**
+
+```bash
+# Step 1: Generate data from Hanzipy (~54 seconds)
 python generate_tian_v1_fast.py
 
-# Step 2: Sort by dependencies (radicals → hanzi → vocabulary)
+# Step 2: Sort by dependencies (~1 second)
 python sort_by_dependencies.py
 
-# Step 3: Create the Anki package
+# Step 3: Create Anki package (~10 seconds)
 python create_deck_from_parquet.py
+```
+
+**View Level Details:**
+
+```bash
+python show_levels.py        # See first 10 levels
+python verify_sorting.py     # Verify dependencies are correct
 ```
 
 ### Project Structure
