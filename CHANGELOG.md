@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Dependency-Based Level System** 🎯
+  - Implemented WaniKani-style progression where components are learned before complex characters
+  - 57 radical levels (5 radicals per level)
+  - Hanzi automatically sorted by radical dependencies
+  - Vocabulary automatically sorted by hanzi dependencies
+  - New script: `sort_by_dependencies.py`
+  - New documentation: `LEVEL_SYSTEM.md`
+  - Verification tools: `verify_sorting.py`, `show_levels.py`
+
+- **Accented Pinyin** 🎵
+  - Converted numbered pinyin (xue3) to accented pinyin (xuě)
+  - Proper tone marks: ā á ǎ à
+  - New utility: `pinyin_converter.py`
+  - Applied to all hanzi and vocabulary cards
+
 ### Changed
 - **README.md** - Rewrote to be more honest about v1 status
   - Clearly marked v1 as a rough prototype
@@ -11,6 +27,7 @@ All notable changes to this project will be documented in this file.
   - Removed overly promotional language
   - Added prominent TODO section highlighting needed improvements
   - Significantly shortened documentation (80% reduction)
+  - Updated to document new level system and accented pinyin
 
 ## [1.0.0] - 2025-10-08
 

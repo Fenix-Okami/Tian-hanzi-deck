@@ -22,9 +22,24 @@ A WaniKani-inspired Anki deck for learning Chinese characters with mnemonics. I 
 
 ## What's Included
 
-- **285 Radicals** - Building blocks of characters
-- **1500 Hanzi** - Top characters by frequency 
-- **1643 Vocabulary** - Common words using these characters
+- **285 Radicals** - Building blocks of characters (5 per level, 57 levels)
+- **1500 Hanzi** - Top characters by frequency (sorted by radical dependencies)
+- **1643 Vocabulary** - Common words (sorted by hanzi dependencies)
+
+### Learning Progression
+
+The deck uses **dependency-based sorting** to ensure you learn components before complex characters:
+
+1. **Radicals First**: 5 radicals per level (Levels 1-57)
+2. **Hanzi Next**: Each character only uses radicals from earlier levels
+3. **Vocabulary Last**: Each word only uses hanzi from earlier levels
+
+**Example:**
+- Level 1: Learn radicals 白, 勹, 丶, 一, 日
+- Level 1: Then learn hanzi that use only these radicals: 的, 一, 日, 白, 百, 旦
+- Level 1: Then learn vocabulary using these hanzi: 一旦
+
+This creates a natural learning curve where you always understand the components of what you're learning.
 
 ## For Developers
 
@@ -37,10 +52,13 @@ pip install -r requirements.txt
 ### Generate the Deck
 
 ```bash
-# Generate data from Hanzipy
+# Step 1: Generate data from Hanzipy
 python generate_tian_v1_fast.py
 
-# Create the Anki package
+# Step 2: Sort by dependencies (radicals → hanzi → vocabulary)
+python sort_by_dependencies.py
+
+# Step 3: Create the Anki package
 python create_deck_from_parquet.py
 ```
 
@@ -50,23 +68,25 @@ python create_deck_from_parquet.py
 ├── anki_deck/
 │   └── Tian_Hanzi_Deck_v1.apkg    # The deck file
 ├── data/
-│   ├── radicals.parquet            # Radical data
-│   ├── hanzi.parquet               # Character data
-│   └── vocabulary.parquet          # Vocabulary data
+│   ├── radicals.parquet            # Radical data (with levels)
+│   ├── hanzi.parquet               # Character data (with levels)
+│   └── vocabulary.parquet          # Vocabulary data (with levels)
 ├── generate_tian_v1_fast.py        # Data generation
+├── sort_by_dependencies.py         # Dependency-based sorting
 ├── create_deck_from_parquet.py     # Deck creation
-└── parquet_utils.py                # Data utilities
+├── parquet_utils.py                # Data utilities
+└── pinyin_converter.py             # Numbered → accented pinyin
 ```
 
 ## Roadmap / TODO
 
 ### Priority Work for v2
 1. **Improve mnemonics** - Review and rewrite auto-generated mnemonics for clarity and memorability
-2. **Better card ordering algorithm** - Develop a more sophisticated approach to card sequencing:
-   - Consider radical dependencies
-   - Balance difficulty progression
-   - Optimize for spaced repetition
-   - Account for semantic and phonetic relationships
+2. **~~Better card ordering algorithm~~** - ✅ **DONE!** Implemented dependency-based sorting:
+   - ✅ Radicals are learned first (5 per level)
+   - ✅ Hanzi only use previously learned radicals
+   - ✅ Vocabulary only uses previously learned hanzi
+   - Future: Consider frequency and difficulty within each level
 
 ### Future Ideas
 - Audio pronunciations
