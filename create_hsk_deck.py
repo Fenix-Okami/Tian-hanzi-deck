@@ -70,6 +70,35 @@ def create_ruby_text(word, pinyin):
         # Fallback: show all pinyin above entire word
         return f'<ruby><rb class="vocab-word">{word}</rb><rt class="pinyin-reading">{pinyin}</rt></ruby>'
 
+def format_components_with_meanings(components_str, radicals_df):
+    """
+    Format components with their meanings.
+    
+    Example: "一|口|丨" -> "一 (one), 口 (mouth), 丨 (line)"
+    """
+    if not components_str or pd.isna(components_str):
+        return "No components"
+    
+    components = str(components_str).split('|')
+    formatted_parts = []
+    
+    for comp in components:
+        comp = comp.strip()
+        if not comp:
+            continue
+        # Look up meaning in radicals dataframe
+        radical_row = radicals_df[radicals_df['radical'] == comp]
+        if not radical_row.empty:
+            meaning = radical_row.iloc[0]['meaning']
+            # Truncate long meanings
+            if len(meaning) > 30:
+                meaning = meaning[:27] + '...'
+            formatted_parts.append(f"{comp} ({meaning})")
+        else:
+            formatted_parts.append(comp)
+    
+    return ', '.join(formatted_parts) if formatted_parts else "No components"
+
 # Define unique model IDs for each card type
 RADICAL_MODEL_ID = random.randrange(1 << 30, 1 << 31)
 HANZI_MODEL_ID = random.randrange(1 << 30, 1 << 31)
@@ -196,16 +225,16 @@ hanzi_model = genanki.Model(
                 <div class="meaning hanzi-meaning">{{Meaning}}</div>
                 <div class="audio-placeholder">🔊 [Audio: {{Reading}}]</div>
                 <div class="section">
-                    <div class="section-title">Components</div>
-                    <div class="radicals">{{Radicals}}</div>
-                </div>
-                <div class="section">
                     <div class="section-title">Meaning Mnemonic</div>
                     <div class="mnemonic">{{MeaningMnemonic}}</div>
                 </div>
                 <div class="section">
                     <div class="section-title">Reading Mnemonic</div>
                     <div class="mnemonic">{{ReadingMnemonic}}</div>
+                </div>
+                <div class="section">
+                    <div class="section-title">Components</div>
+                    <div class="radicals">{{Radicals}}</div>
                 </div>
             ''',
         },
@@ -324,12 +353,12 @@ vocab_model = genanki.Model(
                 <div class="meaning vocab-meaning">{{Meaning}}</div>
                 <div class="audio-placeholder">🔊 [Audio: {{Reading}}]</div>
                 <div class="section">
-                    <div class="section-title">Character Breakdown</div>
-                    <div class="characters">{{Characters}}</div>
-                </div>
-                <div class="section">
                     <div class="section-title">Example</div>
                     <div class="example">{{Example}}</div>
+                </div>
+                <div class="section">
+                    <div class="section-title">Character Breakdown</div>
+                    <div class="characters">{{Characters}}</div>
                 </div>
             ''',
         },
@@ -469,7 +498,10 @@ print(f"\n🔤 Adding {len(hanzi_df)} hanzi cards...")
 for idx, row in hanzi_df.iterrows():
     # Use correct column names: 'hanzi' not 'character', 'components' not 'radicals'
     char = row.get('hanzi', row.get('character', ''))
-    components = row.get('components', row.get('radicals', ''))
+    components_str = row.get('components', row.get('radicals', ''))
+    
+    # Format components with their meanings
+    formatted_components = format_components_with_meanings(components_str, radicals_df)
     
     note = genanki.Note(
         model=hanzi_model,
@@ -477,7 +509,7 @@ for idx, row in hanzi_df.iterrows():
             str(char),
             str(row['meaning']),
             str(row['pinyin']),
-            str(components),
+            formatted_components,
             str(row.get('meaning_mnemonic', 'Think about the meaning of each component.')),
             str(row.get('reading_mnemonic', 'Remember the sound through practice.')),
             str(row.get('hsk_level', '')),
@@ -496,6 +528,9 @@ for idx, row in vocab_df.iterrows():
     pinyin = str(row['pinyin'])
     ruby_text = create_ruby_text(word, pinyin)
     
+    # Create character breakdown without "+" (just space-separated)
+    character_breakdown = ' '.join(list(word))
+    
     note = genanki.Note(
         model=vocab_model,
         fields=[
@@ -503,7 +538,7 @@ for idx, row in vocab_df.iterrows():
             str(row['meaning']),
             pinyin,
             ruby_text,
-            str(row.get('characters', '')),
+            character_breakdown,
             str(row.get('example', '')),
             str(row.get('hsk_level', '')),
             str(row.get('level', '')),

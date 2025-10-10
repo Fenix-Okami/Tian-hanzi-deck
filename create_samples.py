@@ -117,6 +117,41 @@ def create_ruby_text_html(word, pinyin):
         # Fallback: show all pinyin above entire word
         return f'<ruby><rb class="word">{word}</rb><rt class="pinyin-reading">{pinyin}</rt></ruby>'
 
+def format_components_with_meanings(components_str, radicals_df):
+    """
+    Format components with their meanings.
+    Example: "一|口|丨" becomes "一 (one), 口 (mouth), 丨 (line)"
+    """
+    if not components_str or components_str == 'Unknown':
+        return 'Unknown'
+    
+    # Split components by | or comma
+    if '|' in components_str:
+        components = [c.strip() for c in components_str.split('|')]
+    else:
+        components = [c.strip() for c in components_str.split(',')]
+    
+    formatted_parts = []
+    for component in components:
+        if not component:
+            continue
+        
+        # Look up meaning in radicals dataframe
+        meaning = None
+        radical_row = radicals_df[radicals_df['radical'] == component]
+        if not radical_row.empty:
+            meaning = radical_row.iloc[0].get('meaning', '')
+            # Truncate long meanings
+            if meaning and len(meaning) > 30:
+                meaning = meaning[:27] + '...'
+        
+        if meaning:
+            formatted_parts.append(f"{component} ({meaning})")
+        else:
+            formatted_parts.append(component)
+    
+    return ', '.join(formatted_parts)
+
 def create_radical_card_html(radical_data):
     """Generate HTML for a radical card preview"""
     return f"""<!DOCTYPE html>
@@ -254,10 +289,11 @@ def create_radical_card_html(radical_data):
 </body>
 </html>"""
 
-def create_hanzi_card_html(hanzi_data):
+def create_hanzi_card_html(hanzi_data, radicals_df):
     """Generate HTML for a hanzi card preview"""
     char = hanzi_data.get('hanzi', hanzi_data.get('character', ''))
-    components = hanzi_data.get('components', hanzi_data.get('radicals', 'Unknown'))
+    components_raw = hanzi_data.get('components', hanzi_data.get('radicals', 'Unknown'))
+    components = format_components_with_meanings(components_raw, radicals_df)
     
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -398,12 +434,16 @@ def create_hanzi_card_html(hanzi_data):
             <div class="meaning">{hanzi_data.get('meaning', 'Unknown')}</div>
             <div class="audio-placeholder">🔊 [Audio: {hanzi_data.get('pinyin', '?')}]</div>
             <div class="section">
-                <div class="section-title">Components</div>
-                <div class="components">{components}</div>
+                <div class="section-title">Meaning Mnemonic</div>
+                <div class="components">Think about the meaning of each component to remember what this character means.</div>
             </div>
             <div class="section">
-                <div class="section-title">Meaning Mnemonic</div>
-                <div class="components">Think about the meaning of each component.</div>
+                <div class="section-title">Reading Mnemonic</div>
+                <div class="components">Associate the sound "{hanzi_data.get('pinyin', '?')}" with the character's components.</div>
+            </div>
+            <div class="section">
+                <div class="section-title">Components</div>
+                <div class="components">{components}</div>
             </div>
             <div class="info">Green theme • Component-based learning</div>
         </div>
@@ -577,12 +617,12 @@ def create_vocab_card_html(vocab_data):
             <div class="meaning">{vocab_data.get('meaning', 'Unknown')}</div>
             <div class="audio-placeholder">🔊 [Audio: {vocab_data.get('pinyin', '?')}]</div>
             <div class="section">
-                <div class="section-title">Character Breakdown</div>
-                <div class="content">{' + '.join(list(vocab_data.get('word', '')))}</div>
-            </div>
-            <div class="section">
                 <div class="section-title">Example</div>
                 <div class="content">Example sentence would go here.</div>
+            </div>
+            <div class="section">
+                <div class="section-title">Character Breakdown</div>
+                <div class="content">{' '.join(list(vocab_data.get('word', '')))}</div>
             </div>
             <div class="info">Blue theme • Context-based learning</div>
         </div>
@@ -620,7 +660,7 @@ if radicals_sample:
     print(f"✓ Created data/sample_radical_card.html - {radicals_sample[0].get('radical', '')}")
 
 if hanzi_sample:
-    html = create_hanzi_card_html(hanzi_sample[0])
+    html = create_hanzi_card_html(hanzi_sample[0], radicals_df)
     with open('data/sample_hanzi_card.html', 'w', encoding='utf-8') as f:
         f.write(html)
     char = hanzi_sample[0].get('hanzi', hanzi_sample[0].get('character', ''))
