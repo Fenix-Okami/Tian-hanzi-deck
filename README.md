@@ -1,6 +1,7 @@
-# Tian Hanzi Deck
+# 天
+## T.I.A.N Hanzi Deck - Training in Asian Notation
 
-A WaniKani-inspired Anki deck for learning Chinese characters with mnemonics.
+A WaniKani-inspired Anki deck for learning Chinese characters with mnemonics. I was pushed to make this when I personally found Hanzihero and Pandanese lacking for my personal tastes
 
 ## ⚠️ Status: v1 is a Rough Prototype
 
