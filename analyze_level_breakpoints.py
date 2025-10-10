@@ -57,6 +57,8 @@ def find_breakpoints(radicals_df, hanzi_df, min_hanzi_per_level=20):
     """
     Find optimal radical grouping to unlock at least min_hanzi_per_level hanzi per level.
     
+    Includes 0-component hanzi (which ARE radicals) - they unlock when the radical is introduced.
+    
     Returns:
         List of tuples: (level_num, radical_indices, num_radicals, newly_unlocked_hanzi)
     """
@@ -66,16 +68,27 @@ def find_breakpoints(radicals_df, hanzi_df, min_hanzi_per_level=20):
     # Sort radicals by productivity (already done in data, but ensure it)
     radicals_sorted = radicals_df.sort_values('usage_count', ascending=False).reset_index(drop=True)
     
-    # Parse all hanzi components once
+    # Parse all hanzi components once, and identify 0-component hanzi
     hanzi_components_list = []
+    zero_component_hanzi = {}  # Map radical → hanzi_idx for 0-component hanzi
+    
     for idx, row in hanzi_df.iterrows():
+        hanzi_char = row.get('hanzi', '')
+        component_count = row.get('component_count', 0)
         components = parse_components(row.get('components', ''))
-        hanzi_components_list.append({
-            'hanzi': row.get('hanzi', ''),
+        
+        hanzi_data = {
+            'hanzi': hanzi_char,
             'components': components,
+            'component_count': component_count,
             'hsk_level': row.get('hsk_level', ''),
             'learned': False
-        })
+        }
+        hanzi_components_list.append(hanzi_data)
+        
+        # Track 0-component hanzi (they ARE radicals)
+        if component_count == 0:
+            zero_component_hanzi[hanzi_char] = idx
     
     # Track state
     learned_radicals = set()
@@ -88,23 +101,42 @@ def find_breakpoints(radicals_df, hanzi_df, min_hanzi_per_level=20):
         # Add radicals one by one until we unlock enough hanzi
         newly_unlocked = []
         radicals_in_level = []
+        radicals_added_this_iteration = []
         
         for i in range(radical_start_idx, len(radicals_sorted)):
             # Add this radical
             radical = radicals_sorted.iloc[i]['radical']
             radicals_in_level.append(i)
+            radicals_added_this_iteration.append(radical)
             learned_radicals.add(radical)
             
-            # Check which new hanzi can now be learned
+            # Count hanzi that would be unlocked at THIS level
+            # (i.e., all their components are now available)
+            hanzi_unlocked_this_iteration = []
+            
+            # FIRST: Check if this radical IS a 0-component hanzi (unlock it immediately)
+            if radical in zero_component_hanzi:
+                hanzi_idx = zero_component_hanzi[radical]
+                if hanzi_idx not in learned_hanzi_indices:
+                    hanzi_unlocked_this_iteration.append(hanzi_idx)
+                    newly_unlocked.append(hanzi_idx)
+                    learned_hanzi_indices.add(hanzi_idx)
+            
+            # SECOND: Check which component-based hanzi can now be learned
             for idx, hanzi_data in enumerate(hanzi_components_list):
                 if idx in learned_hanzi_indices:
                     continue  # Already learned
                 
+                # Skip 0-component hanzi (already handled above)
+                if hanzi_data['component_count'] == 0:
+                    continue
+                
                 if can_learn_hanzi(hanzi_data['components'], learned_radicals):
+                    hanzi_unlocked_this_iteration.append(idx)
                     newly_unlocked.append(idx)
                     learned_hanzi_indices.add(idx)
             
-            # Check if we've unlocked enough hanzi
+            # Check if we've unlocked enough hanzi with the radicals added so far
             if len(newly_unlocked) >= min_hanzi_per_level:
                 # Create level
                 levels.append({

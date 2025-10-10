@@ -3,12 +3,20 @@
 Create sample CSV files and HTML card previews from parquet data
 Shows 20 random entries from each subdeck
 Also generates HTML preview cards for radicals, hanzi, and vocabulary
+
+NOTE: This script loads data that has already been processed by create_hsk_deck.py
+      (with tian_level assignments, sorting, etc.)
 """
 
 import random
 import csv
 import sys
-import os
+import io
+
+# Windows console UTF-8 setup
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 try:
     import pandas as pd
@@ -24,12 +32,34 @@ from card_utils import create_ruby_text, format_components_with_meanings
 random.seed(42)
 
 print("📊 Creating sample CSV files from parquet data...\n")
+print("ℹ️  Loading pre-processed data (with tian_level assignments from create_hsk_deck.py)\n")
 
-# Load data from parquet files
+# Load data from parquet files (already processed by create_hsk_deck.py)
 print("📂 Loading data from parquet files...")
-radicals_df = pd.read_parquet('data/radicals.parquet')
-hanzi_df = pd.read_parquet('data/hanzi.parquet')
-vocabulary_df = pd.read_parquet('data/vocabulary.parquet')
+try:
+    radicals_df = pd.read_parquet('data/radicals.parquet')
+    hanzi_df = pd.read_parquet('data/hanzi.parquet')
+    vocabulary_df = pd.read_parquet('data/vocabulary.parquet')
+    print(f"✓ Loaded {len(radicals_df)} radicals, {len(hanzi_df)} hanzi, {len(vocabulary_df)} vocabulary\n")
+except Exception as e:
+    print(f"❌ Error loading data: {e}")
+    print("\nMake sure to run the pipeline first:")
+    print("  python create_hsk_deck.py")
+    sys.exit(1)
+
+# Verify expected columns
+expected_cols = {
+    'radicals': ['tian_level', 'radical', 'meaning', 'usage_count'],
+    'hanzi': ['tian_level', 'hsk_level', 'hanzi', 'pinyin', 'meaning', 'components', 'component_count', 'is_surname'],
+    'vocabulary': ['tian_level', 'hsk_level', 'frequency_position', 'word', 'pinyin', 'meaning', 'is_surname']
+}
+
+for name, df, cols in [('radicals', radicals_df, expected_cols['radicals']),
+                        ('hanzi', hanzi_df, expected_cols['hanzi']),
+                        ('vocabulary', vocabulary_df, expected_cols['vocabulary'])]:
+    missing = set(cols) - set(df.columns)
+    if missing:
+        print(f"⚠️  Warning: {name} missing columns: {missing}")
 
 # Convert to list of dictionaries
 radicals = radicals_df.to_dict('records')
@@ -37,24 +67,23 @@ hanzi = hanzi_df.to_dict('records')
 vocabulary = vocabulary_df.to_dict('records')
 
 # Sample 20 random entries from each
-print("\n🎲 Sampling 20 random entries from each...")
+print("🎲 Sampling 20 random entries from each...\n")
 radicals_sample = random.sample(radicals, min(20, len(radicals)))
 hanzi_sample = random.sample(hanzi, min(20, len(hanzi)))
 vocab_sample = random.sample(vocabulary, min(20, len(vocabulary)))
 
-# Save to CSV
-print("\n💾 Saving sample CSV files...\n")
+# Save to CSV (preserving column order from processed data)
+print("💾 Saving sample CSV files...\n")
 
 # Save radicals
 with open('data/radicals_sample.csv', 'w', newline='', encoding='utf-8') as f:
     if radicals:
-        writer = csv.DictWriter(f, fieldnames=radicals[0].keys())
+        writer = csv.DictWriter(f, fieldnames=radicals_df.columns.tolist())
         writer.writeheader()
         writer.writerows(radicals_sample)
 
 print('✓ Created data/radicals_sample.csv')
-if radicals:
-    print(f'  Fields: {list(radicals[0].keys())}')
+print(f'  Columns: {list(radicals_df.columns)}')
 print(f'  Entries: {len(radicals_sample)}/{len(radicals)}')
 
 print()
@@ -62,13 +91,12 @@ print()
 # Save hanzi
 with open('data/hanzi_sample.csv', 'w', newline='', encoding='utf-8') as f:
     if hanzi:
-        writer = csv.DictWriter(f, fieldnames=hanzi[0].keys())
+        writer = csv.DictWriter(f, fieldnames=hanzi_df.columns.tolist())
         writer.writeheader()
         writer.writerows(hanzi_sample)
 
 print('✓ Created data/hanzi_sample.csv')
-if hanzi:
-    print(f'  Fields: {list(hanzi[0].keys())}')
+print(f'  Columns: {list(hanzi_df.columns)}')
 print(f'  Entries: {len(hanzi_sample)}/{len(hanzi)}')
 
 print()
@@ -76,13 +104,12 @@ print()
 # Save vocabulary
 with open('data/vocabulary_sample.csv', 'w', newline='', encoding='utf-8') as f:
     if vocabulary:
-        writer = csv.DictWriter(f, fieldnames=vocabulary[0].keys())
+        writer = csv.DictWriter(f, fieldnames=vocabulary_df.columns.tolist())
         writer.writeheader()
         writer.writerows(vocab_sample)
 
 print('✓ Created data/vocabulary_sample.csv')
-if vocabulary:
-    print(f'  Fields: {list(vocabulary[0].keys())}')
+print(f'  Columns: {list(vocabulary_df.columns)}')
 print(f'  Entries: {len(vocab_sample)}/{len(vocabulary)}')
 
 print("\n" + "=" * 60)
@@ -198,11 +225,11 @@ def create_radical_card_html(radical_data):
     <button class="toggle-button" onclick="toggleCard()">Show Back</button>
     <div class="card">
         <div class="front">
-            <div class="card-type">Radical • Level {radical_data.get('level', '?')}</div>
+            <div class="card-type">Radical • Tian Level {radical_data.get('tian_level', '?')}</div>
             <div class="character">{radical_data.get('radical', '')}</div>
         </div>
         <div class="back">
-            <div class="card-type">Radical • Level {radical_data.get('level', '?')}</div>
+            <div class="card-type">Radical • Tian Level {radical_data.get('tian_level', '?')}</div>
             <div class="character">{radical_data.get('radical', '')}</div>
             <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
             <div class="meaning">{radical_data.get('meaning', 'Unknown')}</div>
@@ -363,11 +390,11 @@ def create_hanzi_card_html(hanzi_data, radicals_df):
     <button class="toggle-button" onclick="toggleCard()">Show Back</button>
     <div class="card">
         <div class="front">
-            <div class="card-type">Hanzi • HSK {hanzi_data.get('hsk_level', '?')} • Level {hanzi_data.get('level', '?')}</div>
+            <div class="card-type">Hanzi • HSK {hanzi_data.get('hsk_level', '?')} • Tian Level {hanzi_data.get('tian_level', '?')}</div>
             <div class="character">{char}</div>
         </div>
         <div class="back">
-            <div class="card-type">Hanzi • HSK {hanzi_data.get('hsk_level', '?')} • Level {hanzi_data.get('level', '?')}</div>
+            <div class="card-type">Hanzi • HSK {hanzi_data.get('hsk_level', '?')} • Tian Level {hanzi_data.get('tian_level', '?')}</div>
             <div class="character-with-reading">
                 <ruby>
                     <rb class="character">{char}</rb>
@@ -549,11 +576,11 @@ def create_vocab_card_html(vocab_data):
     <button class="toggle-button" onclick="toggleCard()">Show Back</button>
     <div class="card">
         <div class="front">
-            <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Level {vocab_data.get('level', '?')}</div>
+            <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Tian Level {vocab_data.get('tian_level', '?')}</div>
             <div class="word">{vocab_data.get('word', '')}</div>
         </div>
         <div class="back">
-            <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Level {vocab_data.get('level', '?')}</div>
+            <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Tian Level {vocab_data.get('tian_level', '?')}</div>
             <div class="word-with-reading">
                 {create_ruby_text(vocab_data.get('word', ''), vocab_data.get('pinyin', ''))}
             </div>

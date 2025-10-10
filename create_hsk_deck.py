@@ -150,11 +150,28 @@ def apply_dynamic_levels(radicals_df, hanzi_df, vocab_df, breakpoints_df):
     radicals_df['level'] = radicals_df['level'].fillna(max_level)
     
     # Apply levels to hanzi based on their components
-    def calculate_hanzi_level(components_str):
-        """Calculate hanzi level as max(component levels) + 1"""
-        if pd.isna(components_str) or not components_str:
-            return max_level
+    def calculate_hanzi_level(row):
+        """Calculate hanzi level as max(component levels) + 1
         
+        Special case: If component_count is 0, the hanzi IS a radical itself.
+        It should unlock at the SAME level as when that radical is introduced,
+        not default to level 1.
+        """
+        hanzi_char = row.get('hanzi', row.get('character', ''))
+        components_str = row['components']
+        component_count = row.get('component_count', 0)
+        
+        # If no components, the hanzi IS a radical itself
+        # Find when this radical is introduced and use that level
+        if component_count == 0 or pd.isna(components_str) or not components_str:
+            # Look up this hanzi in the radical_to_level mapping
+            if hanzi_char in radical_to_level:
+                return radical_to_level[hanzi_char]
+            else:
+                # If not in radical list, assign to last level
+                return max_level
+        
+        # For hanzi with components, calculate based on component levels
         components = [c.strip() for c in str(components_str).split('|')]
         component_levels = []
         
@@ -163,11 +180,14 @@ def apply_dynamic_levels(radicals_df, hanzi_df, vocab_df, breakpoints_df):
                 component_levels.append(radical_to_level[comp])
         
         if component_levels:
-            return max(component_levels) + 1
+            # Assign to same level as the highest component (not +1)
+            # Hanzi unlock when all their components are available
+            return max(component_levels)
         else:
+            # If components exist but aren't in our radical list, assign to max level
             return max_level
     
-    hanzi_df['level'] = hanzi_df['components'].apply(calculate_hanzi_level)
+    hanzi_df['level'] = hanzi_df.apply(calculate_hanzi_level, axis=1)
     
     # Cap hanzi levels at max_level + 1 (since they're components + 1)
     hanzi_df['level'] = hanzi_df['level'].clip(upper=max_level + 1)
@@ -208,13 +228,62 @@ radicals_df, hanzi_df, vocab_df = apply_dynamic_levels(
     radicals_df, hanzi_df, vocab_df, breakpoints_df
 )
 
-# Optionally save the updated data with dynamic levels
+# Save the updated data with dynamic levels and reordered columns
 if breakpoints_df is not None:
     print("💾 Saving updated data with dynamic levels...")
+    
+    # Drop 'tian_level' if it already exists (from previous runs)
+    if 'tian_level' in radicals_df.columns:
+        radicals_df = radicals_df.drop(columns=['tian_level'])
+    if 'tian_level' in hanzi_df.columns:
+        hanzi_df = hanzi_df.drop(columns=['tian_level'])
+    if 'tian_level' in vocab_df.columns:
+        vocab_df = vocab_df.drop(columns=['tian_level'])
+    
+    # Sort dataframes FIRST (using 'level' column), then rename
+    # Radicals: Sort by level (ascending), then usage_count (descending - most productive first)
+    radicals_df = radicals_df.sort_values(['level', 'usage_count'], ascending=[True, False])
+    
+    # Hanzi: Sort by level, hsk_level, component_count (simpler first)
+    hanzi_df = hanzi_df.sort_values(['level', 'hsk_level', 'component_count'], ascending=[True, True, True])
+    
+    # Vocabulary: Sort by level, hsk_level, frequency_position (lower = more frequent)
+    vocab_df = vocab_df.sort_values(['level', 'hsk_level', 'frequency_position'], ascending=[True, True, True])
+    
+    # NOW rename 'level' to 'tian_level' for clarity
+    radicals_df = radicals_df.rename(columns={'level': 'tian_level'})
+    hanzi_df = hanzi_df.rename(columns={'level': 'tian_level'})
+    vocab_df = vocab_df.rename(columns={'level': 'tian_level'})
+    
+    # Convert tian_level to integers (no decimals)
+    radicals_df['tian_level'] = radicals_df['tian_level'].astype(int)
+    hanzi_df['tian_level'] = hanzi_df['tian_level'].astype(int)
+    vocab_df['tian_level'] = vocab_df['tian_level'].astype(int)
+    
+    # Reorder columns: tian_level first, then other important columns
+    # Radicals: tian_level, radical, meaning, usage_count
+    radical_cols = ['tian_level', 'radical', 'meaning', 'usage_count']
+    radicals_df = radicals_df[radical_cols]
+    
+    # Hanzi: tian_level, hsk_level, hanzi, pinyin, meaning, components, component_count, is_surname
+    hanzi_cols = ['tian_level', 'hsk_level', 'hanzi', 'pinyin', 'meaning', 'components', 'component_count', 'is_surname']
+    hanzi_df = hanzi_df[hanzi_cols]
+    
+    # Vocabulary: tian_level, hsk_level, frequency_position, word, pinyin, meaning, is_surname
+    vocab_cols = ['tian_level', 'hsk_level', 'frequency_position', 'word', 'pinyin', 'meaning', 'is_surname']
+    vocab_df = vocab_df[vocab_cols]
+    
+    # Save parquet files
     radicals_df.to_parquet('data/radicals.parquet', index=False)
     hanzi_df.to_parquet('data/hanzi.parquet', index=False)
     vocab_df.to_parquet('data/vocabulary.parquet', index=False)
-    print("   ✓ Saved updated parquet files\n")
+    
+    # Save CSV files
+    radicals_df.to_csv('data/radicals.csv', index=False, encoding='utf-8-sig')
+    hanzi_df.to_csv('data/hanzi.csv', index=False, encoding='utf-8-sig')
+    vocab_df.to_csv('data/vocabulary.csv', index=False, encoding='utf-8-sig')
+    
+    print("   ✓ Saved updated parquet and CSV files\n")
 
 # Define unique model IDs for each card type
 RADICAL_MODEL_ID = random.randrange(1 << 30, 1 << 31)
@@ -599,11 +668,11 @@ for idx, row in radicals_df.iterrows():
         fields=[
             str(row['radical']),
             str(row['meaning']),
-            str(row['usage_count']),
+            str(int(row['usage_count'])),
             str(row.get('mnemonic', 'Remember this radical!')),
-            str(row.get('level', '')),
+            str(int(row['tian_level'])),
         ],
-        tags=['radical', 'hsk1-3', f'level-{row.get("level", "0")}']
+        tags=['radical', 'hsk1-3', f'tian-{int(row["tian_level"])}']
     )
     radical_deck.add_note(note)
 
@@ -619,6 +688,15 @@ for idx, row in hanzi_df.iterrows():
     # Format components with their meanings
     formatted_components = format_components_with_meanings(components_str, radicals_df)
     
+    # Handle potential NaN values for hsk_level
+    hsk_level = row.get('hsk_level', '')
+    if pd.notna(hsk_level):
+        hsk_level_str = str(int(hsk_level))
+        hsk_tag = f'hsk{int(hsk_level)}'
+    else:
+        hsk_level_str = ''
+        hsk_tag = 'hsk-unknown'
+    
     note = genanki.Note(
         model=hanzi_model,
         fields=[
@@ -628,10 +706,10 @@ for idx, row in hanzi_df.iterrows():
             formatted_components,
             str(row.get('meaning_mnemonic', 'Think about the meaning of each component.')),
             str(row.get('reading_mnemonic', 'Remember the sound through practice.')),
-            str(row.get('hsk_level', '')),
-            str(row.get('level', '')),
+            hsk_level_str,
+            str(int(row['tian_level'])),
         ],
-        tags=['hanzi', f'hsk{row.get("hsk_level", "")}', f'level-{row.get("level", "0")}']
+        tags=['hanzi', hsk_tag, f'tian-{int(row["tian_level"])}']
     )
     hanzi_deck.add_note(note)
 
@@ -656,10 +734,10 @@ for idx, row in vocab_df.iterrows():
             ruby_text,
             character_breakdown,
             str(row.get('example', '')),
-            str(row.get('hsk_level', '')),
-            str(row.get('level', '')),
+            str(int(row['hsk_level'])),
+            str(int(row['tian_level'])),
         ],
-        tags=['vocabulary', f'hsk{row.get("hsk_level", "")}', f'level-{row.get("level", "0")}']
+        tags=['vocabulary', f'hsk{int(row["hsk_level"])}', f'tian-{int(row["tian_level"])}']
     )
     vocab_deck.add_note(note)
 
