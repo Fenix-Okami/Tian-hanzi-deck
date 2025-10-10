@@ -104,6 +104,27 @@ def create_radical_card_html(radical_data):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Radical Card Preview - {radical_data.get('radical', '')}</title>
     <style>
+        body {{
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }}
+        .toggle-button {{
+            display: block;
+            margin: 0 auto 20px;
+            padding: 12px 24px;
+            background-color: #8b4513;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }}
+        .toggle-button:hover {{
+            background-color: #654321;
+        }}
         .card {{
             font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
             text-align: center;
@@ -111,7 +132,7 @@ def create_radical_card_html(radical_data):
             background: linear-gradient(135deg, #f5e6d3 0%, #e8d5c4 100%);
             padding: 20px;
             max-width: 500px;
-            margin: 20px auto;
+            margin: 0 auto;
             border-radius: 12px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }}
@@ -165,19 +186,49 @@ def create_radical_card_html(radical_data):
             padding-top: 20px;
             border-top: 1px solid rgba(0,0,0,0.1);
         }}
+        .back {{
+            display: none;
+        }}
     </style>
 </head>
 <body>
+    <button class="toggle-button" onclick="toggleCard()">Show Back</button>
     <div class="card">
-        <div class="card-type">Radical • Level {radical_data.get('level', '?')}</div>
-        <div class="character">{radical_data.get('radical', '')}</div>
-        <div class="prompt">What does this radical mean?</div>
-        <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
-        <div class="meaning">{radical_data.get('meaning', 'Unknown')}</div>
-        <div class="productivity">Used in {radical_data.get('usage_count', 0)} characters</div>
-        <div class="mnemonic">Remember this radical!</div>
-        <div class="info">Brown theme • Productivity-based sorting</div>
+        <div class="front">
+            <div class="card-type">Radical • Level {radical_data.get('level', '?')}</div>
+            <div class="character">{radical_data.get('radical', '')}</div>
+            <div class="prompt">What does this radical mean?</div>
+        </div>
+        <div class="back">
+            <div class="card-type">Radical • Level {radical_data.get('level', '?')}</div>
+            <div class="character">{radical_data.get('radical', '')}</div>
+            <div class="prompt">What does this radical mean?</div>
+            <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
+            <div class="meaning">{radical_data.get('meaning', 'Unknown')}</div>
+            <div class="productivity">Used in {radical_data.get('usage_count', 0)} characters</div>
+            <div class="mnemonic">Remember this radical!</div>
+            <div class="info">Brown theme • Productivity-based sorting</div>
+        </div>
     </div>
+    <script>
+        let showingFront = true;
+        function toggleCard() {{
+            const front = document.querySelector('.front');
+            const back = document.querySelector('.back');
+            const button = document.querySelector('.toggle-button');
+            
+            if (showingFront) {{
+                front.style.display = 'none';
+                back.style.display = 'block';
+                button.textContent = 'Show Front';
+            }} else {{
+                front.style.display = 'block';
+                back.style.display = 'none';
+                button.textContent = 'Show Back';
+            }}
+            showingFront = !showingFront;
+        }}
+    </script>
 </body>
 </html>"""
 
@@ -193,6 +244,27 @@ def create_hanzi_card_html(hanzi_data):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hanzi Card Preview - {char}</title>
     <style>
+        body {{
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }}
+        .toggle-button {{
+            display: block;
+            margin: 0 auto 20px;
+            padding: 12px 24px;
+            background-color: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }}
+        .toggle-button:hover {{
+            background-color: #1b5e20;
+        }}
         .card {{
             font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
             text-align: center;
@@ -200,7 +272,7 @@ def create_hanzi_card_html(hanzi_data):
             background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
             padding: 20px;
             max-width: 500px;
-            margin: 20px auto;
+            margin: 0 auto;
             border-radius: 12px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }}
@@ -229,10 +301,31 @@ def create_hanzi_card_html(hanzi_data):
             margin: 20px 0;
             color: #2e7d32;
         }}
-        .reading {{
-            font-size: 24px;
+        .character-with-reading {{
+            margin: 30px 0;
+            line-height: 1;
+        }}
+        ruby {{
+            ruby-position: over;
+        }}
+        rt {{
+            ruby-align: center;
+            margin-bottom: 15px;
+        }}
+        .character-with-reading .character {{
+            font-size: 120px;
+            color: #1b5e20;
+        }}
+        .pinyin-reading {{
+            font-size: 28px;
             color: #558b2f;
+            font-weight: bold;
+        }}
+        .audio-placeholder {{
+            font-size: 16px;
+            color: #666;
             margin: 10px 0;
+            opacity: 0.7;
         }}
         .section {{
             background-color: rgba(255, 255, 255, 0.5);
@@ -259,26 +352,59 @@ def create_hanzi_card_html(hanzi_data):
             padding-top: 20px;
             border-top: 1px solid rgba(0,0,0,0.1);
         }}
+        .back {{
+            display: none;
+        }}
     </style>
 </head>
 <body>
+    <button class="toggle-button" onclick="toggleCard()">Show Back</button>
     <div class="card">
-        <div class="card-type">Hanzi • HSK {hanzi_data.get('hsk_level', '?')} • Level {hanzi_data.get('level', '?')}</div>
-        <div class="character">{char}</div>
-        <div class="prompt">What is the meaning and reading?</div>
-        <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
-        <div class="meaning">{hanzi_data.get('meaning', 'Unknown')}</div>
-        <div class="reading">{hanzi_data.get('pinyin', '?')}</div>
-        <div class="section">
-            <div class="section-title">Components</div>
-            <div class="components">{components}</div>
+        <div class="front">
+            <div class="card-type">Hanzi • HSK {hanzi_data.get('hsk_level', '?')} • Level {hanzi_data.get('level', '?')}</div>
+            <div class="character">{char}</div>
         </div>
-        <div class="section">
-            <div class="section-title">Meaning Mnemonic</div>
-            <div class="components">Think about the meaning of each component.</div>
+        <div class="back">
+            <div class="card-type">Hanzi • HSK {hanzi_data.get('hsk_level', '?')} • Level {hanzi_data.get('level', '?')}</div>
+            <div class="character-with-reading">
+                <ruby>
+                    <rb class="character">{char}</rb>
+                    <rt class="pinyin-reading">{hanzi_data.get('pinyin', '?')}</rt>
+                </ruby>
+            </div>
+            <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
+            <div class="meaning">{hanzi_data.get('meaning', 'Unknown')}</div>
+            <div class="audio-placeholder">🔊 [Audio: {hanzi_data.get('pinyin', '?')}]</div>
+            <div class="section">
+                <div class="section-title">Components</div>
+                <div class="components">{components}</div>
+            </div>
+            <div class="section">
+                <div class="section-title">Meaning Mnemonic</div>
+                <div class="components">Think about the meaning of each component.</div>
+            </div>
+            <div class="info">Green theme • Component-based learning</div>
         </div>
-        <div class="info">Green theme • Component-based learning</div>
     </div>
+    <script>
+        let showingFront = true;
+        function toggleCard() {{
+            const front = document.querySelector('.front');
+            const back = document.querySelector('.back');
+            const button = document.querySelector('.toggle-button');
+            
+            if (showingFront) {{
+                front.style.display = 'none';
+                back.style.display = 'block';
+                button.textContent = 'Show Front';
+            }} else {{
+                front.style.display = 'block';
+                back.style.display = 'none';
+                button.textContent = 'Show Back';
+            }}
+            showingFront = !showingFront;
+        }}
+    </script>
 </body>
 </html>"""
 
@@ -291,6 +417,27 @@ def create_vocab_card_html(vocab_data):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vocabulary Card Preview - {vocab_data.get('word', '')}</title>
     <style>
+        body {{
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }}
+        .toggle-button {{
+            display: block;
+            margin: 0 auto 20px;
+            padding: 12px 24px;
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }}
+        .toggle-button:hover {{
+            background-color: #0d47a1;
+        }}
         .card {{
             font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
             text-align: center;
@@ -298,7 +445,7 @@ def create_vocab_card_html(vocab_data):
             background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
             padding: 20px;
             max-width: 500px;
-            margin: 20px auto;
+            margin: 0 auto;
             border-radius: 12px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }}
@@ -327,10 +474,31 @@ def create_vocab_card_html(vocab_data):
             margin: 20px 0;
             color: #1565c0;
         }}
-        .reading {{
+        .word-with-reading {{
+            margin: 30px 0;
+            line-height: 1;
+        }}
+        ruby {{
+            ruby-position: over;
+        }}
+        rt {{
+            ruby-align: center;
+            margin-bottom: 15px;
+        }}
+        .word-with-reading .word {{
+            font-size: 80px;
+            color: #0d47a1;
+        }}
+        .pinyin-reading {{
             font-size: 24px;
             color: #1976d2;
+            font-weight: bold;
+        }}
+        .audio-placeholder {{
+            font-size: 16px;
+            color: #666;
             margin: 10px 0;
+            opacity: 0.7;
         }}
         .section {{
             background-color: rgba(255, 255, 255, 0.5);
@@ -358,26 +526,59 @@ def create_vocab_card_html(vocab_data):
             padding-top: 20px;
             border-top: 1px solid rgba(0,0,0,0.1);
         }}
+        .back {{
+            display: none;
+        }}
     </style>
 </head>
 <body>
+    <button class="toggle-button" onclick="toggleCard()">Show Back</button>
     <div class="card">
-        <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Level {vocab_data.get('level', '?')}</div>
-        <div class="word">{vocab_data.get('word', '')}</div>
-        <div class="prompt">What does this word mean?</div>
-        <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
-        <div class="meaning">{vocab_data.get('meaning', 'Unknown')}</div>
-        <div class="reading">{vocab_data.get('pinyin', '?')}</div>
-        <div class="section">
-            <div class="section-title">Character Breakdown</div>
-            <div class="content">{' + '.join(list(vocab_data.get('word', '')))}</div>
+        <div class="front">
+            <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Level {vocab_data.get('level', '?')}</div>
+            <div class="word">{vocab_data.get('word', '')}</div>
         </div>
-        <div class="section">
-            <div class="section-title">Example</div>
-            <div class="content">Example sentence would go here.</div>
+        <div class="back">
+            <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Level {vocab_data.get('level', '?')}</div>
+            <div class="word-with-reading">
+                <ruby>
+                    <rb class="word">{vocab_data.get('word', '')}</rb>
+                    <rt class="pinyin-reading">{vocab_data.get('pinyin', '?')}</rt>
+                </ruby>
+            </div>
+            <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
+            <div class="meaning">{vocab_data.get('meaning', 'Unknown')}</div>
+            <div class="audio-placeholder">🔊 [Audio: {vocab_data.get('pinyin', '?')}]</div>
+            <div class="section">
+                <div class="section-title">Character Breakdown</div>
+                <div class="content">{' + '.join(list(vocab_data.get('word', '')))}</div>
+            </div>
+            <div class="section">
+                <div class="section-title">Example</div>
+                <div class="content">Example sentence would go here.</div>
+            </div>
+            <div class="info">Blue theme • Context-based learning</div>
         </div>
-        <div class="info">Blue theme • Context-based learning</div>
     </div>
+    <script>
+        let showingFront = true;
+        function toggleCard() {{
+            const front = document.querySelector('.front');
+            const back = document.querySelector('.back');
+            const button = document.querySelector('.toggle-button');
+            
+            if (showingFront) {{
+                front.style.display = 'none';
+                back.style.display = 'block';
+                button.textContent = 'Show Front';
+            }} else {{
+                front.style.display = 'block';
+                back.style.display = 'none';
+                button.textContent = 'Show Back';
+            }}
+            showingFront = !showingFront;
+        }}
+    </script>
 </body>
 </html>"""
 

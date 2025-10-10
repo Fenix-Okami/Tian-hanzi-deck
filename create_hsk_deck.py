@@ -50,8 +50,11 @@ RADICAL_MODEL_ID = random.randrange(1 << 30, 1 << 31)
 HANZI_MODEL_ID = random.randrange(1 << 30, 1 << 31)
 VOCAB_MODEL_ID = random.randrange(1 << 30, 1 << 31)
 
-# Define unique deck ID
-DECK_ID = random.randrange(1 << 30, 1 << 31)
+# Define unique deck IDs (parent and three subdecks)
+PARENT_DECK_ID = random.randrange(1 << 30, 1 << 31)
+RADICAL_DECK_ID = random.randrange(1 << 30, 1 << 31)
+HANZI_DECK_ID = random.randrange(1 << 30, 1 << 31)
+VOCAB_DECK_ID = random.randrange(1 << 30, 1 << 31)
 
 # Card model for Radicals (Brown theme)
 radical_model = genanki.Model(
@@ -155,13 +158,18 @@ hanzi_model = genanki.Model(
             'qfmt': '''
                 <div class="card-type hanzi-type">Hanzi • HSK {{HSKLevel}} • Level {{Level}}</div>
                 <div class="character hanzi-char">{{Character}}</div>
-                <div class="prompt">What is the meaning and reading?</div>
             ''',
             'afmt': '''
-                {{FrontSide}}
+                <div class="card-type hanzi-type">Hanzi • HSK {{HSKLevel}} • Level {{Level}}</div>
+                <div class="character-with-reading">
+                    <ruby>
+                        <rb class="hanzi-char">{{Character}}</rb>
+                        <rt class="pinyin-reading">{{Reading}}</rt>
+                    </ruby>
+                </div>
                 <hr id="answer">
                 <div class="meaning hanzi-meaning">{{Meaning}}</div>
-                <div class="reading">{{Reading}}</div>
+                <div class="audio-placeholder">🔊 [Audio: {{Reading}}]</div>
                 <div class="section">
                     <div class="section-title">Components</div>
                     <div class="radicals">{{Radicals}}</div>
@@ -210,10 +218,31 @@ hanzi_model = genanki.Model(
             margin: 20px 0;
         }
         .hanzi-meaning { color: #2e7d32; }
-        .reading {
-            font-size: 24px;
+        .character-with-reading {
+            margin: 30px 0;
+            line-height: 1;
+        }
+        ruby {
+            ruby-position: over;
+        }
+        rt {
+            ruby-align: center;
+            margin-bottom: 15px;
+        }
+        .character-with-reading .hanzi-char {
+            font-size: 120px;
+            color: #1b5e20;
+        }
+        .pinyin-reading {
+            font-size: 28px;
             color: #558b2f;
+            font-weight: bold;
+        }
+        .audio-placeholder {
+            font-size: 16px;
+            color: #666;
             margin: 10px 0;
+            opacity: 0.7;
         }
         .section {
             background-color: rgba(255, 255, 255, 0.5);
@@ -259,13 +288,18 @@ vocab_model = genanki.Model(
             'qfmt': '''
                 <div class="card-type vocab-type">Vocabulary • HSK {{HSKLevel}} • Level {{Level}}</div>
                 <div class="word vocab-word">{{Word}}</div>
-                <div class="prompt">What does this word mean?</div>
             ''',
             'afmt': '''
-                {{FrontSide}}
+                <div class="card-type vocab-type">Vocabulary • HSK {{HSKLevel}} • Level {{Level}}</div>
+                <div class="word-with-reading">
+                    <ruby>
+                        <rb class="vocab-word">{{Word}}</rb>
+                        <rt class="pinyin-reading">{{Reading}}</rt>
+                    </ruby>
+                </div>
                 <hr id="answer">
                 <div class="meaning vocab-meaning">{{Meaning}}</div>
-                <div class="reading">{{Reading}}</div>
+                <div class="audio-placeholder">🔊 [Audio: {{Reading}}]</div>
                 <div class="section">
                     <div class="section-title">Character Breakdown</div>
                     <div class="characters">{{Characters}}</div>
@@ -310,10 +344,31 @@ vocab_model = genanki.Model(
             margin: 20px 0;
         }
         .vocab-meaning { color: #1565c0; }
-        .reading {
+        .word-with-reading {
+            margin: 30px 0;
+            line-height: 1;
+        }
+        ruby {
+            ruby-position: over;
+        }
+        rt {
+            ruby-align: center;
+            margin-bottom: 15px;
+        }
+        .word-with-reading .vocab-word {
+            font-size: 80px;
+            color: #0d47a1;
+        }
+        .pinyin-reading {
             font-size: 24px;
             color: #1976d2;
+            font-weight: bold;
+        }
+        .audio-placeholder {
+            font-size: 16px;
+            color: #666;
             margin: 10px 0;
+            opacity: 0.7;
         }
         .section {
             background-color: rgba(255, 255, 255, 0.5);
@@ -342,10 +397,20 @@ vocab_model = genanki.Model(
     '''
 )
 
-# Create the main deck
-deck = genanki.Deck(
-    DECK_ID,
-    'HSK 1-3 Hanzi Deck'
+# Create parent deck and three subdecks
+radical_deck = genanki.Deck(
+    RADICAL_DECK_ID,
+    'HSK 1-3 Hanzi Deck::1. Radicals'
+)
+
+hanzi_deck = genanki.Deck(
+    HANZI_DECK_ID,
+    'HSK 1-3 Hanzi Deck::2. Hanzi'
+)
+
+vocab_deck = genanki.Deck(
+    VOCAB_DECK_ID,
+    'HSK 1-3 Hanzi Deck::3. Vocabulary'
 )
 
 print("🎴 Creating Anki cards...")
@@ -362,22 +427,26 @@ for idx, row in radicals_df.iterrows():
             str(row.get('mnemonic', 'Remember this radical!')),
             str(row.get('level', '')),
         ],
-        tags=['radical', f'hsk1-3', f'level-{row.get("level", "0")}']
+        tags=['radical', 'hsk1-3', f'level-{row.get("level", "0")}']
     )
-    deck.add_note(note)
+    radical_deck.add_note(note)
 
 print(f"   ✓ Added {len(radicals_df)} radical cards")
 
 # Add hanzi cards
 print(f"\n🔤 Adding {len(hanzi_df)} hanzi cards...")
 for idx, row in hanzi_df.iterrows():
+    # Use correct column names: 'hanzi' not 'character', 'components' not 'radicals'
+    char = row.get('hanzi', row.get('character', ''))
+    components = row.get('components', row.get('radicals', ''))
+    
     note = genanki.Note(
         model=hanzi_model,
         fields=[
-            str(row['character']),
+            str(char),
             str(row['meaning']),
             str(row['pinyin']),
-            str(row['radicals']),
+            str(components),
             str(row.get('meaning_mnemonic', 'Think about the meaning of each component.')),
             str(row.get('reading_mnemonic', 'Remember the sound through practice.')),
             str(row.get('hsk_level', '')),
@@ -385,7 +454,7 @@ for idx, row in hanzi_df.iterrows():
         ],
         tags=['hanzi', f'hsk{row.get("hsk_level", "")}', f'level-{row.get("level", "0")}']
     )
-    deck.add_note(note)
+    hanzi_deck.add_note(note)
 
 print(f"   ✓ Added {len(hanzi_df)} hanzi cards")
 
@@ -405,27 +474,29 @@ for idx, row in vocab_df.iterrows():
         ],
         tags=['vocabulary', f'hsk{row.get("hsk_level", "")}', f'level-{row.get("level", "0")}']
     )
-    deck.add_note(note)
+    vocab_deck.add_note(note)
 
 print(f"   ✓ Added {len(vocab_df)} vocabulary cards")
 
 # Create output directory if it doesn't exist
 os.makedirs('anki_deck', exist_ok=True)
 
-# Save the deck
+# Save the deck package with all three subdecks
 output_file = 'anki_deck/HSK_1-3_Hanzi_Deck.apkg'
 print(f"\n💾 Saving Anki deck to {output_file}...")
 
 try:
-    genanki.Package(deck).write_to_file(output_file)
-    print(f"   ✓ Deck saved successfully!")
+    # Package all three subdecks together
+    genanki.Package([radical_deck, hanzi_deck, vocab_deck]).write_to_file(output_file)
+    print("   ✓ Deck saved successfully!")
     
     total_cards = len(radicals_df) + len(hanzi_df) + len(vocab_df)
     print(f"\n{'='*60}")
     print(f"✅ SUCCESS! Created Anki deck with {total_cards} cards:")
-    print(f"   • {len(radicals_df)} radical cards")
-    print(f"   • {len(hanzi_df)} hanzi cards")
-    print(f"   • {len(vocab_df)} vocabulary cards")
+    print(f"   📦 HSK 1-3 Hanzi Deck (parent)")
+    print(f"      ├── 1. Radicals: {len(radicals_df)} cards")
+    print(f"      ├── 2. Hanzi: {len(hanzi_df)} cards")
+    print(f"      └── 3. Vocabulary: {len(vocab_df)} cards")
     print(f"{'='*60}")
     print(f"\n📦 Import {output_file} into Anki to start learning!")
     

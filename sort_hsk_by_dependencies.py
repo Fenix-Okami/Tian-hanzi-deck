@@ -101,10 +101,12 @@ def assign_hanzi_levels(hanzi_df, radical_to_level, radical_levels):
     hanzi_to_level = {}
     
     for idx, row in hanzi_df.iterrows():
-        radicals_list = parse_radicals_from_hanzi(row['radicals'])
+        # Use 'components' column (not 'radicals')
+        components_str = row.get('components', row.get('radicals', ''))
+        radicals_list = parse_radicals_from_hanzi(components_str)
         level = calculate_hanzi_level(radicals_list, radical_to_level, radical_levels)
         hanzi_levels.append(level)
-        hanzi_to_level[row['character']] = level
+        hanzi_to_level[row.get('hanzi', row.get('character', ''))] = level
     
     hanzi_df['level'] = hanzi_levels
     
@@ -177,12 +179,12 @@ def assign_vocab_levels(vocab_df, hanzi_to_level, max_hanzi_level):
     vocab_levels = []
     
     for idx, row in vocab_df.iterrows():
-        characters_list = parse_characters_from_vocab(row.get('characters', ''))
-        if not characters_list:
-            # Fallback: use the word itself
-            characters_list = list(row['word'])
+        # Vocabulary doesn't have 'characters' column in HSK data
+        # Just use the word itself to extract characters
+        word = row.get('word', '')
+        characters_list = list(word) if word else []
         
-        level = calculate_vocab_level(row['word'], characters_list, hanzi_to_level, max_hanzi_level)
+        level = calculate_vocab_level(word, characters_list, hanzi_to_level, max_hanzi_level)
         vocab_levels.append(level)
     
     vocab_df['level'] = vocab_levels
@@ -243,7 +245,9 @@ def print_level_summary(radicals_df, hanzi_df, vocab_df):
     hanzi_levels = hanzi_df['level'].value_counts().sort_index()
     for level in sorted(hanzi_levels.index[:10]):  # Show first 10 levels
         count = hanzi_levels[level]
-        sample_chars = hanzi_df[hanzi_df['level'] == level]['character'].head(5).tolist()
+        # Use 'hanzi' column name
+        char_col = 'hanzi' if 'hanzi' in hanzi_df.columns else 'character'
+        sample_chars = hanzi_df[hanzi_df['level'] == level][char_col].head(5).tolist()
         print(f"   Level {level:2d}: {count:3d} hanzi - {', '.join(sample_chars)}")
     if len(hanzi_levels) > 10:
         print(f"   ... ({len(hanzi_levels) - 10} more levels)")

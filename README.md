@@ -77,6 +77,7 @@ python create_hsk_deck.py             # Step 3: Create Anki .apkg file
 **Analysis tools:**
 ```bash
 python analyze_hsk_components.py      # View component productivity analysis
+python create_samples.py              # Create sample CSVs and HTML card previews
 python show_levels.py                 # Display level distribution
 python verify_sorting.py              # Verify dependency sorting
 ```
@@ -146,7 +147,7 @@ The HSK scorer assigns priority scores based on HSK level and frequency rankings
 │   ├── parquet_utils.py                # Data management utility
 │   ├── show_levels.py                  # View level distribution
 │   ├── verify_sorting.py               # Verify dependencies
-│   └── create_sample_csvs.py           # Create sample CSV files
+│   └── create_samples.py               # Create sample CSVs and HTML card previews
 │
 ├── Optional HSK Tools
 │   ├── hsk_scorer.py                   # Score all HSK levels (1-9)
