@@ -194,7 +194,7 @@ def apply_dynamic_levels(radicals_df, hanzi_df, vocab_df, breakpoints_df):
     
     # Apply levels to vocabulary based on their characters
     def calculate_vocab_level(word):
-        """Calculate vocabulary level as max(hanzi levels) + 1"""
+        """Calculate vocabulary level as max(hanzi tian_levels)"""
         if pd.isna(word) or not word:
             return max_level + 2
         
@@ -205,8 +205,10 @@ def apply_dynamic_levels(radicals_df, hanzi_df, vocab_df, breakpoints_df):
                 hanzi_levels.append(char_level)
         
         if hanzi_levels:
-            return max(hanzi_levels) + 1
+            # Vocabulary unlocks at the same level as its most advanced hanzi
+            return max(hanzi_levels)
         else:
+            # If no hanzi found (shouldn't happen), assign to max level
             return max_level + 2
     
     vocab_df['level'] = vocab_df['word'].apply(calculate_vocab_level)
