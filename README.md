@@ -54,14 +54,17 @@ pip install -r requirements.txt
 **HSK 1-3 is now the default approach!** Generate targeted decks based on HSK levels with productive component analysis:
 
 ```bash
-# Generate deck for HSK 1-3 (default: 899 characters, 2227 words, 233 radicals)
-python generate_hsk_deck.py
+# Complete pipeline (3 steps)
+python generate_hsk_deck.py           # Step 1: Generate data (899 hanzi, 2227 vocab, 233 radicals)
+python sort_hsk_by_dependencies.py    # Step 2: Sort by dependencies into levels
+python create_hsk_deck.py             # Step 3: Create Anki .apkg file
 ```
 
 **Output files:**
 - `data/vocabulary.csv/parquet` - 2,227 HSK 1-3 words
 - `data/hanzi.csv/parquet` - 899 characters  
 - `data/radicals.csv/parquet` - 233 productive components
+- `anki_deck/HSK_1-3_Hanzi_Deck.apkg` - Ready-to-import Anki deck
 
 **Why HSK-based is better:**
 - ✅ 40% fewer characters than arbitrary frequency (899 vs 1500)
@@ -69,6 +72,14 @@ python generate_hsk_deck.py
 - ✅ Direct HSK exam alignment
 - ✅ Scientifically calculated component productivity scores
 - ✅ Learn only what you need for your HSK level
+- ✅ Dependency-based learning progression
+
+**Analysis tools:**
+```bash
+python analyze_hsk_components.py      # View component productivity analysis
+python show_levels.py                 # Display level distribution
+python verify_sorting.py              # Verify dependency sorting
+```
 
 See [HSK_DECK_GENERATION_GUIDE.md](HSK_DECK_GENERATION_GUIDE.md) for details.
 
@@ -116,40 +127,64 @@ The HSK scorer assigns priority scores based on HSK level and frequency rankings
 
 ```
 ├── anki_deck/
-│   └── Tian_Hanzi_Deck_v1.apkg         # The deck file (v1 - original)
+│   ├── Tian_Hanzi_Deck_v1.apkg         # Original deck (v1)
+│   └── HSK_1-3_Hanzi_Deck.apkg         # HSK 1-3 deck (NEW!)
 ├── data/
-│   ├── radicals.csv/parquet            # HSK 1-3: 233 productive components
-│   ├── hanzi.csv/parquet               # HSK 1-3: 899 characters
 │   ├── vocabulary.csv/parquet          # HSK 1-3: 2,227 words
-│   ├── hsk_hanzi_scored.csv/parquet    # HSK hanzi with priority scores
-│   ├── hsk_vocabulary_scored.csv/parquet # HSK vocabulary with priority scores
-│   └── HSK-3.0/                        # HSK 3.0 data (hanzi & frequency lists)
-├── generate_hsk_deck.py                # HSK-based deck generation (default)
-├── generate_tian_v1_fast.py            # Data generation (original v1)
-├── sort_by_dependencies.py             # Dependency-based sorting
-├── create_deck_from_parquet.py         # Deck creation
-├── hsk_scorer.py                       # HSK scoring system
-├── analyze_hsk_components.py           # Component productivity analysis
-├── parquet_utils.py                    # Data utilities
-└── pinyin_converter.py                 # Numbered → accented pinyin
+│   ├── hanzi.csv/parquet               # HSK 1-3: 899 characters
+│   ├── radicals.csv/parquet            # HSK 1-3: 233 productive components
+│   └── HSK-3.0/                        # HSK 3.0 source data
+│
+├── Core HSK Pipeline (Use these! ⭐)
+│   ├── generate_hsk_deck.py            # 1. Generate HSK 1-3 data
+│   ├── sort_hsk_by_dependencies.py     # 2. Sort by dependencies
+│   ├── create_hsk_deck.py              # 3. Create Anki deck
+│   └── analyze_hsk_components.py       # Analyze productivity
+│
+├── Utilities
+│   ├── pinyin_converter.py             # Pinyin conversion utility
+│   ├── parquet_utils.py                # Data management utility
+│   ├── show_levels.py                  # View level distribution
+│   ├── verify_sorting.py               # Verify dependencies
+│   └── create_sample_csvs.py           # Create sample CSV files
+│
+├── Optional HSK Tools
+│   ├── hsk_scorer.py                   # Score all HSK levels (1-9)
+│   └── analyze_hsk_scores.py           # Score distribution analysis
+│
+└── Legacy V1 Scripts
+    ├── generate_tian_v1_fast.py        # Original frequency-based generator
+    ├── sort_by_dependencies.py         # Original dependency sorter
+    ├── create_deck_from_parquet.py     # Original deck creator
+    └── analyze_productive_components.py # Old analysis tool
 ```
+
+## Documentation
+
+- 📖 **[HSK Pipeline Quick Start](HSK_PIPELINE_QUICKSTART.md)** - Complete step-by-step guide
+- 📊 **[HSK Deck Generation Guide](HSK_DECK_GENERATION_GUIDE.md)** - HSK methodology details
+- 🔧 **[Script Consolidation Plan](SCRIPT_CONSOLIDATION_PLAN.md)** - Script organization reference
+- 🎴 **[Card Preview Guide](CARD_PREVIEW_GUIDE.md)** - Card design and styling
+- 📈 **[HSK Scoring Guide](HSK_SCORING_GUIDE.md)** - Scoring system explanation
+- 🎯 **[Level System](LEVEL_SYSTEM.md)** - Dependency-based learning progression
 
 ## Roadmap / TODO
 
-### Priority Work for v2
-1. **Improve mnemonics** - Review and rewrite auto-generated mnemonics for clarity and memorability
-2. **~~Better card ordering algorithm~~** - ✅ **DONE!** Implemented dependency-based sorting:
-   - ✅ Radicals are learned first (5 per level)
-   - ✅ Hanzi only use previously learned radicals
-   - ✅ Vocabulary only uses previously learned hanzi
-   - Future: Consider frequency and difficulty within each level
+### ✅ Completed for HSK 1-3
+1. ✅ **HSK-based deck generation** - Focus on HSK 1-3 vocabulary
+2. ✅ **Productive component analysis** - Scientific radical selection
+3. ✅ **Dependency-based sorting** - Learn components before characters
+4. ✅ **Level system** - Progressive learning with 5 radicals per level
+5. ✅ **HSK level tags** - Filter by HSK 1, 2, or 3
+6. ✅ **Themed card designs** - Brown (radicals), Green (hanzi), Blue (vocabulary)
 
 ### Future Ideas
 - Audio pronunciations
 - Stroke order animations
 - Better example sentences
 - Traditional character support
-- HSK level tags
+- Improved mnemonics
+- HSK 4-6 expansion
 
 ## Acknowledgments
 
