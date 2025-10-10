@@ -16,6 +16,7 @@ import sys
 from collections import OrderedDict
 from multiprocessing import Pool, cpu_count
 from parquet_utils import ParquetDataManager
+from pinyin_converter import numbered_to_accented
 
 try:
     from hanzipy.decomposer import HanziDecomposer
@@ -92,7 +93,7 @@ def process_character_for_hanzi(char_data):
         # Use the first definition
         first_def = definitions[0]
         meaning = first_def['definition']
-        reading = first_def['pinyin']
+        reading = numbered_to_accented(first_def['pinyin'])
         
         # Get radical composition
         decomposition = decomposer.decompose(char, 2)
@@ -166,7 +167,7 @@ def process_character_for_vocab(hanzi_data):
             vocab_list.append({
                 'word': word,
                 'meaning': word_data['definition'],
-                'reading': word_data['pinyin'],
+                'reading': numbered_to_accented(word_data['pinyin']),
                 'characters': characters_str,
                 'example': '',
                 'mnemonic': mnemonic
