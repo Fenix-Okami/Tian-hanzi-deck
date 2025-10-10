@@ -7,6 +7,7 @@ with radicals, hanzi, and vocabulary cards.
 
 Features:
 - Level-based learning order (requires sort_hsk_by_dependencies.py first)
+- Dynamic breakpoint analysis (shows optimal radical grouping)
 - HSK-appropriate styling and card types
 - Productivity scores for radicals
 - Component breakdowns for hanzi
@@ -17,6 +18,8 @@ import random
 import sys
 import os
 import io
+import subprocess
+from pathlib import Path
 
 # Windows console UTF-8 setup
 if sys.platform == 'win32':
@@ -35,6 +38,56 @@ except ImportError as e:
 # Import shared utility functions
 from card_utils import create_ruby_text, format_components_with_meanings
 
+
+def run_breakpoint_analysis():
+    """Run breakpoint analysis and display results"""
+    print("🔍 Running breakpoint analysis...")
+    print("=" * 70)
+    
+    try:
+        # Run the breakpoint analysis script
+        result = subprocess.run(
+            [sys.executable, 'analyze_level_breakpoints.py'],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace'
+        )
+        
+        if result.returncode == 0:
+            # Parse key statistics from output
+            output_lines = result.stdout.split('\n')
+            
+            for line in output_lines:
+                if 'Total Levels:' in line or 'Total Radicals:' in line or 'Total Hanzi:' in line:
+                    print(f"   {line.strip()}")
+                elif 'Dynamic approach uses' in line:
+                    print(f"   ✓ {line.strip()}")
+            
+            print("=" * 70)
+            print()
+            
+            # Load the breakpoint analysis results
+            if Path('data/breakpoint_analysis.csv').exists():
+                breakpoints_df = pd.read_csv('data/breakpoint_analysis.csv')
+                return breakpoints_df
+            else:
+                print("⚠️  Warning: Breakpoint analysis file not found, continuing with current data...")
+                return None
+        else:
+            print("⚠️  Warning: Breakpoint analysis failed, continuing with current data...")
+            print(f"Error: {result.stderr[:200]}")
+            return None
+            
+    except Exception as e:
+        print(f"⚠️  Warning: Could not run breakpoint analysis: {e}")
+        print("Continuing with current data...")
+        return None
+
+
+# Run breakpoint analysis first
+breakpoints_df = run_breakpoint_analysis()
+
 # Load HSK data from Parquet files
 print("📂 Loading HSK 1-3 data from Parquet files...")
 try:
@@ -47,6 +100,109 @@ except Exception as e:
     print("\nMake sure to generate data files first:")
     print("  python generate_hsk_deck.py")
     sys.exit(1)
+
+
+def apply_dynamic_levels(radicals_df, hanzi_df, vocab_df, breakpoints_df):
+    """
+    Apply dynamic level assignments from breakpoint analysis.
+    
+    Args:
+        radicals_df: DataFrame with radical data
+        hanzi_df: DataFrame with hanzi data
+        vocab_df: DataFrame with vocabulary data
+        breakpoints_df: DataFrame with breakpoint analysis results
+    
+    Returns:
+        Tuple of (radicals_df, hanzi_df, vocab_df) with updated levels
+    """
+    if breakpoints_df is None:
+        print("⚠️  Using existing level assignments (no breakpoint data available)")
+        return radicals_df, hanzi_df, vocab_df
+    
+    print("🔄 Applying dynamic level assignments from breakpoint analysis...")
+    
+    # Create a copy to avoid modifying original data
+    radicals_df = radicals_df.copy()
+    hanzi_df = hanzi_df.copy()
+    vocab_df = vocab_df.copy()
+    
+    # Build radical to level mapping
+    radical_to_level = {}
+    for _, bp_row in breakpoints_df.iterrows():
+        level = bp_row['level']
+        radicals_str = bp_row['radicals']
+        if pd.notna(radicals_str):
+            radicals_list = radicals_str.split('|')
+            for radical in radicals_list:
+                radical = radical.strip()
+                if radical and radical != 'No glyph available':
+                    radical_to_level[radical] = level
+    
+    # Apply levels to radicals
+    radicals_df['level'] = radicals_df['radical'].map(radical_to_level)
+    
+    # For any radicals without a level, assign to last level
+    max_level = breakpoints_df['level'].max() if len(breakpoints_df) > 0 else 1
+    radicals_df['level'] = radicals_df['level'].fillna(max_level)
+    
+    # Apply levels to hanzi based on their components
+    def calculate_hanzi_level(components_str):
+        """Calculate hanzi level as max(component levels) + 1"""
+        if pd.isna(components_str) or not components_str:
+            return max_level
+        
+        components = [c.strip() for c in str(components_str).split('|')]
+        component_levels = []
+        
+        for comp in components:
+            if comp and comp in radical_to_level:
+                component_levels.append(radical_to_level[comp])
+        
+        if component_levels:
+            return max(component_levels) + 1
+        else:
+            return max_level
+    
+    hanzi_df['level'] = hanzi_df['components'].apply(calculate_hanzi_level)
+    
+    # Cap hanzi levels at max_level + 1 (since they're components + 1)
+    hanzi_df['level'] = hanzi_df['level'].clip(upper=max_level + 1)
+    
+    # Apply levels to vocabulary based on their characters
+    def calculate_vocab_level(word):
+        """Calculate vocabulary level as max(hanzi levels) + 1"""
+        if pd.isna(word) or not word:
+            return max_level + 2
+        
+        hanzi_levels = []
+        for char in str(word):
+            if char in hanzi_df['hanzi'].values:
+                char_level = hanzi_df[hanzi_df['hanzi'] == char]['level'].iloc[0]
+                hanzi_levels.append(char_level)
+        
+        if hanzi_levels:
+            return max(hanzi_levels) + 1
+        else:
+            return max_level + 2
+    
+    vocab_df['level'] = vocab_df['word'].apply(calculate_vocab_level)
+    
+    # Cap vocab levels appropriately
+    vocab_df['level'] = vocab_df['level'].clip(upper=max_level + 10)
+    
+    # Print statistics
+    print(f"   ✓ Assigned {len(radicals_df['level'].unique())} radical levels (1-{int(radicals_df['level'].max())})")
+    print(f"   ✓ Assigned {len(hanzi_df['level'].unique())} hanzi levels (1-{int(hanzi_df['level'].max())})")
+    print(f"   ✓ Assigned {len(vocab_df['level'].unique())} vocabulary levels (1-{int(vocab_df['level'].max())})")
+    print()
+    
+    return radicals_df, hanzi_df, vocab_df
+
+
+# Apply dynamic levels if breakpoint analysis was successful
+radicals_df, hanzi_df, vocab_df = apply_dynamic_levels(
+    radicals_df, hanzi_df, vocab_df, breakpoints_df
+)
 
 # Define unique model IDs for each card type
 RADICAL_MODEL_ID = random.randrange(1 << 30, 1 << 31)
