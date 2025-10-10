@@ -81,20 +81,32 @@ python show_levels.py        # See first 10 levels
 python verify_sorting.py     # Verify dependencies are correct
 ```
 
+**HSK Scoring System:**
+
+```bash
+python hsk_scorer.py         # Generate HSK-based scores for vocabulary and hanzi
+```
+
+The HSK scorer assigns priority scores based on HSK level and frequency rankings. See [HSK_SCORING_GUIDE.md](HSK_SCORING_GUIDE.md) for details.
+
 ### Project Structure
 
 ```
 ├── anki_deck/
-│   └── Tian_Hanzi_Deck_v1.apkg    # The deck file
+│   └── Tian_Hanzi_Deck_v1.apkg         # The deck file
 ├── data/
-│   ├── radicals.parquet            # Radical data (with levels)
-│   ├── hanzi.parquet               # Character data (with levels)
-│   └── vocabulary.parquet          # Vocabulary data (with levels)
-├── generate_tian_v1_fast.py        # Data generation
-├── sort_by_dependencies.py         # Dependency-based sorting
-├── create_deck_from_parquet.py     # Deck creation
-├── parquet_utils.py                # Data utilities
-└── pinyin_converter.py             # Numbered → accented pinyin
+│   ├── radicals.parquet                # Radical data (with levels)
+│   ├── hanzi.parquet                   # Character data (with levels)
+│   ├── vocabulary.parquet              # Vocabulary data (with levels)
+│   ├── hsk_hanzi_scored.csv/parquet    # HSK hanzi with priority scores
+│   ├── hsk_vocabulary_scored.csv/parquet # HSK vocabulary with priority scores
+│   └── HSK-3.0/                        # HSK 3.0 data (hanzi & frequency lists)
+├── generate_tian_v1_fast.py            # Data generation
+├── sort_by_dependencies.py             # Dependency-based sorting
+├── create_deck_from_parquet.py         # Deck creation
+├── hsk_scorer.py                       # HSK scoring system
+├── parquet_utils.py                    # Data utilities
+└── pinyin_converter.py                 # Numbered → accented pinyin
 ```
 
 ## Roadmap / TODO
@@ -119,6 +131,7 @@ python verify_sorting.py     # Verify dependencies are correct
 **Data Sources:**
 - [Hanzipy](https://github.com/Synkied/hanzipy) - Python libary to Hanzi
 - [Hanzi](https://github.com/nieldlr/hanzi) - Character decomposition and radical data
+- [HSK-3.0](https://github.com/krmanik/HSK-3.0) by [@krmanik](https://github.com/krmanik) - HSK 3.0 word lists, Hanzi, and frequency data (CC BY-SA 4.0)
 - CC-CEDICT - Dictionary definitions
 - Jun Da - Character frequency data
 
