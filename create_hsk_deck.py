@@ -45,6 +45,31 @@ except Exception as e:
     print("  python generate_hsk_deck.py")
     sys.exit(1)
 
+def create_ruby_text(word, pinyin):
+    """
+    Create HTML ruby text with pinyin above each character.
+    Splits multi-syllable pinyin and pairs with each character.
+    
+    Example: create_ruby_text("故事", "gù shi") 
+    Returns: <ruby><rb>故</rb><rt>gù</rt></ruby><ruby><rb>事</rb><rt>shi</rt></ruby>
+    """
+    if not word or not pinyin:
+        return word
+    
+    # Split pinyin by spaces
+    pinyin_parts = pinyin.strip().split()
+    characters = list(word)
+    
+    # If we have the same number of pinyin parts and characters, pair them
+    if len(pinyin_parts) == len(characters):
+        ruby_parts = []
+        for char, pin in zip(characters, pinyin_parts):
+            ruby_parts.append(f'<ruby><rb class="vocab-char">{char}</rb><rt class="pinyin-reading">{pin}</rt></ruby>')
+        return ''.join(ruby_parts)
+    else:
+        # Fallback: show all pinyin above entire word
+        return f'<ruby><rb class="vocab-word">{word}</rb><rt class="pinyin-reading">{pinyin}</rt></ruby>'
+
 # Define unique model IDs for each card type
 RADICAL_MODEL_ID = random.randrange(1 << 30, 1 << 31)
 HANZI_MODEL_ID = random.randrange(1 << 30, 1 << 31)
@@ -277,6 +302,7 @@ vocab_model = genanki.Model(
         {'name': 'Word'},
         {'name': 'Meaning'},
         {'name': 'Reading'},
+        {'name': 'RubyText'},
         {'name': 'Characters'},
         {'name': 'Example'},
         {'name': 'HSKLevel'},
@@ -292,10 +318,7 @@ vocab_model = genanki.Model(
             'afmt': '''
                 <div class="card-type vocab-type">Vocabulary • HSK {{HSKLevel}} • Level {{Level}}</div>
                 <div class="word-with-reading">
-                    <ruby>
-                        <rb class="vocab-word">{{Word}}</rb>
-                        <rt class="pinyin-reading">{{Reading}}</rt>
-                    </ruby>
+                    {{RubyText}}
                 </div>
                 <hr id="answer">
                 <div class="meaning vocab-meaning">{{Meaning}}</div>
@@ -347,6 +370,10 @@ vocab_model = genanki.Model(
         .word-with-reading {
             margin: 30px 0;
             line-height: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 5px;
         }
         ruby {
             ruby-position: over;
@@ -356,6 +383,10 @@ vocab_model = genanki.Model(
             margin-bottom: 15px;
         }
         .word-with-reading .vocab-word {
+            font-size: 80px;
+            color: #0d47a1;
+        }
+        .word-with-reading .vocab-char {
             font-size: 80px;
             color: #0d47a1;
         }
@@ -461,12 +492,17 @@ print(f"   ✓ Added {len(hanzi_df)} hanzi cards")
 # Add vocabulary cards
 print(f"\n📚 Adding {len(vocab_df)} vocabulary cards...")
 for idx, row in vocab_df.iterrows():
+    word = str(row['word'])
+    pinyin = str(row['pinyin'])
+    ruby_text = create_ruby_text(word, pinyin)
+    
     note = genanki.Note(
         model=vocab_model,
         fields=[
-            str(row['word']),
+            word,
             str(row['meaning']),
-            str(row['pinyin']),
+            pinyin,
+            ruby_text,
             str(row.get('characters', '')),
             str(row.get('example', '')),
             str(row.get('hsk_level', '')),

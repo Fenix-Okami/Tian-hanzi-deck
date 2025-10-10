@@ -95,6 +95,28 @@ print("\n" + "=" * 60)
 print("🎴 Generating HTML card previews...")
 print("=" * 60)
 
+def create_ruby_text_html(word, pinyin):
+    """
+    Create HTML ruby text with pinyin above each character.
+    Splits multi-syllable pinyin and pairs with each character.
+    """
+    if not word or not pinyin:
+        return word
+    
+    # Split pinyin by spaces
+    pinyin_parts = pinyin.strip().split()
+    characters = list(word)
+    
+    # If we have the same number of pinyin parts and characters, pair them
+    if len(pinyin_parts) == len(characters):
+        ruby_parts = []
+        for char, pin in zip(characters, pinyin_parts):
+            ruby_parts.append(f'<ruby><rb class="vocab-char">{char}</rb><rt class="pinyin-reading">{pin}</rt></ruby>')
+        return ''.join(ruby_parts)
+    else:
+        # Fallback: show all pinyin above entire word
+        return f'<ruby><rb class="word">{word}</rb><rt class="pinyin-reading">{pinyin}</rt></ruby>'
+
 def create_radical_card_html(radical_data):
     """Generate HTML for a radical card preview"""
     return f"""<!DOCTYPE html>
@@ -477,6 +499,10 @@ def create_vocab_card_html(vocab_data):
         .word-with-reading {{
             margin: 30px 0;
             line-height: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 5px;
         }}
         ruby {{
             ruby-position: over;
@@ -486,6 +512,10 @@ def create_vocab_card_html(vocab_data):
             margin-bottom: 15px;
         }}
         .word-with-reading .word {{
+            font-size: 80px;
+            color: #0d47a1;
+        }}
+        .word-with-reading .vocab-char {{
             font-size: 80px;
             color: #0d47a1;
         }}
@@ -541,10 +571,7 @@ def create_vocab_card_html(vocab_data):
         <div class="back">
             <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Level {vocab_data.get('level', '?')}</div>
             <div class="word-with-reading">
-                <ruby>
-                    <rb class="word">{vocab_data.get('word', '')}</rb>
-                    <rt class="pinyin-reading">{vocab_data.get('pinyin', '?')}</rt>
-                </ruby>
+                {create_ruby_text_html(vocab_data.get('word', ''), vocab_data.get('pinyin', ''))}
             </div>
             <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
             <div class="meaning">{vocab_data.get('meaning', 'Unknown')}</div>
