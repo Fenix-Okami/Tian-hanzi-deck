@@ -73,14 +73,15 @@ class TestHSKDeckBuilder:
     @pytest.mark.unit
     def test_component_productivity_calculation(self):
         """Test component productivity score calculation"""
+        from collections import Counter
         builder = HSKDeckBuilder()
         
         # Mock component productivity counter
-        builder.component_productivity = {
+        builder.component_productivity = Counter({
             '亻': 50,
             '口': 45,
             '女': 30,
-        }
+        })
         
         # Mock decomposer to return meanings
         with patch.object(builder.decomposer, 'get_radical_meaning') as mock_get_meaning:
@@ -101,8 +102,9 @@ class TestHSKDeckBuilder:
     @pytest.mark.unit
     def test_component_without_meaning(self):
         """Test components without meanings get default label"""
+        from collections import Counter
         builder = HSKDeckBuilder()
-        builder.component_productivity = {'X': 5}
+        builder.component_productivity = Counter({'X': 5})
         
         with patch.object(builder.decomposer, 'get_radical_meaning') as mock_get_meaning:
             mock_get_meaning.return_value = None
