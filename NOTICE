@@ -1,0 +1,55 @@
+Tian Hanzi Deck
+Copyright 2025 Fenix-Okami
+
+This project includes code licensed under the Apache License 2.0.
+See LICENSE file for details.
+
+================================================================================
+
+DATA ATTRIBUTIONS
+
+This project includes data from the following sources:
+
+--------------------------------------------------------------------------------
+HSK 3.0 Word Lists
+https://github.com/krmanik/HSK-3.0
+Copyright (c) Mani
+Licensed under CC BY-SA 4.0
+https://creativecommons.org/licenses/by-sa/4.0/
+
+Used for: Vocabulary selection (which words to include in the deck)
+
+The HSK 3.0 repository incorporates data from:
+- SUBTLEX-CH (CC BY-SA 4.0) - frequency ordering
+- Pleco HSK 3.0 word lists (MIT) - word selection methodology
+
+--------------------------------------------------------------------------------
+CC-CEDICT (via hanzipy library)
+Licensed under CC BY-SA 4.0
+https://creativecommons.org/licenses/by-sa/4.0/
+https://cc-cedict.org/wiki/
+
+Used for: Character and word definitions, pinyin readings
+Accessed via: https://github.com/Synkied/hanzipy
+
+--------------------------------------------------------------------------------
+
+GENERATED DECK LICENSE
+
+The generated Anki deck file (HSK_1-3_Hanzi_Deck.apkg) contains data derived
+from CC BY-SA 4.0 licensed sources and is therefore licensed under:
+
+Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+https://creativecommons.org/licenses/by-sa/4.0/
+
+This means:
+- You are free to share and adapt the deck
+- You must give appropriate credit
+- You must distribute derivative works under the same license
+- You must indicate if changes were made
+
+================================================================================
+
+For complete license details, see:
+- LICENSE (Apache 2.0 for source code)
+- data/HSK-3.0/License.md (CC BY-SA 4.0 for data sources)

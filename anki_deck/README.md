@@ -4,8 +4,18 @@ This folder contains the generated Anki deck files (.apkg) that can be imported 
 
 ## Files
 
-- **Tian_Hanzi_Deck_v1.apkg** - Version 1 deck with top 1500 characters (3,428 cards)
-- **Tian_Hanzi_Deck.apkg** - Custom/example deck
+- **HSK_1-3_Hanzi_Deck.apkg** - HSK 1-3 based deck (3,359 cards: 233 radicals + 899 hanzi + 2,227 vocabulary)
+
+## License
+
+⚠️ **Important:** The `.apkg` deck file is licensed under **CC BY-SA 4.0**, not Apache 2.0.
+
+The deck contains data derived from:
+- CC-CEDICT (CC BY-SA 4.0)
+- SUBTLEX-CH (CC BY-SA 4.0)
+- Pleco HSK 3.0 word lists (MIT)
+
+See the [NOTICE](../NOTICE) file for complete attribution details.
 
 ## How to Use
 

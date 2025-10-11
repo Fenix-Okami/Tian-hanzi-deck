@@ -185,18 +185,26 @@ Pipeline takes ~45 seconds total (30s generate + 5s sort + 10s create)
 ## 📝 License & Credits
 
 ### Project License
-**MIT License** - See [LICENSE](LICENSE)
+**Apache License 2.0** - See [LICENSE](LICENSE)
 
-### HSK 3.0 Data
+### Data Sources
+
+**HSK 3.0 Word Lists:**
 - Source: [krmanik/HSK-3.0](https://github.com/krmanik/HSK-3.0)
 - License: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+- Used for: Vocabulary selection (which words to include)
 
-**As a consequence of using the HSK 3.0 library, this project incorporates data from:**
-- **CC-CEDICT** - CC BY-SA 4.0
-- **SUBTLEX-CH** - CC BY-SA 4.0
-- **Pleco HSK 3.0 word lists** - MIT License
+**CC-CEDICT (via hanzipy):**
+- License: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+- Used for: Character and word definitions, pinyin
 
-See [data/HSK-3.0/License.md](data/HSK-3.0/License.md) for full attribution details.
+**Indirectly incorporated via HSK 3.0:**
+- **SUBTLEX-CH** - CC BY-SA 4.0 (frequency ordering)
+- **Pleco word lists** - MIT License (word selection methodology)
+
+**Important:** The generated Anki deck (`.apkg` file) contains data derived from CC BY-SA 4.0 sources (CC-CEDICT, SUBTLEX-CH via HSK 3.0) and is therefore licensed under CC BY-SA 4.0. The source code remains Apache 2.0.
+
+See [data/HSK-3.0/License.md](data/HSK-3.0/License.md) for full HSK 3.0 attribution details.
 
 ### Other Libraries
 - Character decomposition: [hanzipy](https://github.com/Synkied/hanzipy)
