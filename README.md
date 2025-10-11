@@ -184,10 +184,24 @@ Pipeline takes ~45 seconds total (30s generate + 5s sort + 10s create)
 
 ## 📝 License & Credits
 
-**License:** MIT - See [LICENSE](LICENSE)
+### Project License
+**MIT License** - See [LICENSE](LICENSE)
 
-**Data Source:** HSK vocabulary from [krmanik/HSK-3.0](https://github.com/krmanik/HSK-3.0) (CC BY-SA 4.0)
+### HSK 3.0 Data
+- Source: [krmanik/HSK-3.0](https://github.com/krmanik/HSK-3.0)
+- License: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
-**Libraries:** [hanzipy](https://github.com/Synkied/hanzipy), [genanki](https://github.com/kerrickstaley/genanki)
+**As a consequence of using the HSK 3.0 library, this project incorporates data from:**
+- **CC-CEDICT** - CC BY-SA 4.0
+- **SUBTLEX-CH** - CC BY-SA 4.0
+- **Pleco HSK 3.0 word lists** - MIT License
 
-**Inspired by:** [WaniKani](https://www.wanikani.com/), Heisig's Remembering Hanzi
+See [data/HSK-3.0/License.md](data/HSK-3.0/License.md) for full attribution details.
+
+### Other Libraries
+- Character decomposition: [hanzipy](https://github.com/Synkied/hanzipy)
+- Anki deck generation: [genanki](https://github.com/kerrickstaley/genanki)
+
+### Inspiration
+- [WaniKani](https://www.wanikani.com/) - Japanese learning method
+- Heisig's *Remembering the Hanzi* - Mnemonic approach
