@@ -39,11 +39,5 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.11",
     ],
-    entry_points={
-        "console_scripts": [
-            "tian-generate=tian_hanzi.cli:generate_data",
-            "tian-sort=tian_hanzi.cli:sort_dependencies",
-            "tian-create=tian_hanzi.cli:create_deck",
-        ],
-    },
+    # entry_points removed due to missing tian_hanzi.cli module
 )
