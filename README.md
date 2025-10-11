@@ -1,29 +1,79 @@
 # 天 Tian Hanzi Deck
 ## Training in Asian Notation
 
-An Anki deck for learning Chinese cha## 📖 Scripts
+An Anki deck for learning Chinese characters through dependency-based progression. Built from HSK 1-3 vocabulary with component productivity analysis.
 
-**Pipeline:**
+## 📁 Project Structure
+
+```
+Tian-hanzi-deck/
+├── src/                          # Source code package
+│   └── tian_hanzi/              # Main package
+│       ├── data_generator.py    # HSK data extraction
+│       └── utils/               # Utility modules
+│           ├── pinyin_converter.py
+│           ├── parquet_manager.py
+│           └── card_utils.py
+│
+├── tests/                       # Unit tests (pytest)
+│   ├── conftest.py             # Test fixtures
+│   ├── test_utilities.py       # Utility function tests
+│   └── test_data_generation.py # Data generation tests
+│
+├── scripts/                     # Utility scripts
+│   ├── analysis/               # Analysis tools
+│   ├── validation/             # Data validation
+│   └── legacy/                 # Old test scripts
+│
+├── generate_hsk_deck.py        # Pipeline step 1: Generate data
+├── sort_hsk_by_dependencies.py # Pipeline step 2: Sort by deps
+├── create_hsk_deck.py          # Pipeline step 3: Create deck
+├── run_hsk_pipeline.sh         # Run complete pipeline
+│
+├── pytest.ini                  # Pytest configuration
+├── setup.py                    # Package setup
+└── requirements.txt            # Python dependencies
+```
+
+## 🧪 Testing
+
+Run unit tests with pytest:
+
+```bash
+# Install test dependencies
+pip install pytest pytest-cov
+
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=src/tian_hanzi --cov-report=html
+```
+
+All tests should pass (21 tests covering utilities and data generation).
+
+## 📖 Scripts
+
+**Pipeline (Main):**
 - `generate_hsk_deck.py` - Extract data from HSK lists
 - `sort_hsk_by_dependencies.py` - Assign dependency levels
 - `create_hsk_deck.py` - Build Anki package
 - `run_hsk_pipeline.sh` - Run all steps
+- `create_samples.py` - Sample data and HTML previews
 
-**Mnemonics (NEW!):**
+**Mnemonics (Optional):**
 - `generate_mnemonics.py` - Generate AI-powered mnemonics with OpenAI
 - `run_mnemonic_generator.sh` - Quick start script
 - See [MNEMONIC_GENERATOR_GUIDE.md](MNEMONIC_GENERATOR_GUIDE.md) for details
 
-**Analysis:**
-- `analyze_hsk_components.py` - Component productivity
-- `show_levels.py` - Level distribution
-- `verify_sorting.py` - Dependency verification
-- `create_samples.py` - Sample data and HTML previews
+**Analysis Tools** (in `scripts/analysis/`):
+- `analyze_hsk_components.py` - Component productivity analysis
+- `show_levels.py` - Display level distribution
+- `show_stroke_stats.py` - Show stroke count statistics
 
-**Utilities:**
-- `pinyin_converter.py` - Pinyin conversion
-- `parquet_utils.py` - Data management
-- `card_utils.py` - Shared card formatting functionsendency-based progression. Built from HSK 1-3 vocabulary with component productivity analysis.
+**Validation Tools** (in `scripts/validation/`):
+- Various `verify_*.py` and `check_*.py` scripts for data validation
+- Note: These will be migrated to proper unit tests over time
 
 ## 📋 Overview
 
