@@ -32,7 +32,7 @@ class TestPinyinConverter:
     def test_empty_string(self):
         """Test empty string handling"""
         assert numbered_to_accented("") == ""
-        assert numbered_to_accented(None) == None
+        assert numbered_to_accented(None) is None
     
     def test_tone_placement_rules(self):
         """Test correct placement of tone marks"""
