@@ -270,15 +270,33 @@ class HSKDeckBuilder:
             
             # Get decomposition (components/radicals)
             try:
-                decomposition = self.decomposer.decompose(char, 2)
+                # Call without depth to get all decomposition types
+                decomposition = self.decomposer.decompose(char)
                 components = []
                 
-                if decomposition and 'components' in decomposition:
-                    for component in decomposition['components']:
+                if decomposition:
+                    # First, try to use radical components
+                    radical_components = decomposition.get('radical', [])
+                    graphical_components = decomposition.get('graphical', [])
+                    
+                    # Filter out "No glyph available" and use graphical fallback
+                    for component in radical_components:
                         if component and component != char:
+                            if component == 'No glyph available':
+                                # Skip this - we'll add graphical components instead
+                                continue
                             components.append(component)
-                            # Track component usage for productivity score
-                            self.component_productivity[component] += 1
+                    
+                    # Add graphical components that aren't already in the list
+                    # This handles cases where radical had "No glyph available"
+                    if 'No glyph available' in radical_components:
+                        for component in graphical_components:
+                            if component and component != char and component not in components:
+                                components.append(component)
+                    
+                    # Track component usage for productivity score
+                    for component in components:
+                        self.component_productivity[component] += 1
             except Exception:
                 components = []
             
@@ -334,10 +352,14 @@ class HSKDeckBuilder:
             usage_hsk2 = self.component_productivity_by_hsk[2].get(component, 0)
             usage_hsk3 = self.component_productivity_by_hsk[3].get(component, 0)
             
+            # Calculate weighted productivity score
+            # HSK1 = 5 points, HSK2 = 3 points, HSK3 = 1 point
+            weighted_productivity = (usage_hsk1 * 5) + (usage_hsk2 * 3) + (usage_hsk3 * 1)
+            
             component_data[component] = {
                 'component': component,
                 'meaning': meaning,
-                'productivity_score': count,
+                'productivity_score': weighted_productivity,
                 'usage_count': count,
                 'usage_hsk1': usage_hsk1,
                 'usage_hsk2': usage_hsk2,
@@ -346,19 +368,25 @@ class HSKDeckBuilder:
         
         self.components = component_data
         
+        # Sort by weighted productivity score
+        sorted_components = sorted(component_data.items(), 
+                                   key=lambda x: x[1]['productivity_score'], 
+                                   reverse=True)
+        
         # Show top productive components
         print(f"✅ Found {len(component_data)} unique components\n")
-        print("🏆 Top 20 Most Productive Components:")
-        print("-" * 80)
-        print(f"  {'Comp':>4} | {'Total':>5} | {'HSK1':>4} | {'HSK2':>4} | {'HSK3':>4} | Meaning")
-        print("-" * 80)
-        for component, data in list(component_data.items())[:20]:
+        print("🏆 Top 20 Most Productive Components (Weighted: HSK1×5 + HSK2×3 + HSK3×1):")
+        print("-" * 90)
+        print(f"  {'Comp':>4} | {'Score':>5} | {'Total':>5} | {'HSK1':>4} | {'HSK2':>4} | {'HSK3':>4} | Meaning")
+        print("-" * 90)
+        for component, data in sorted_components[:20]:
             score = data['productivity_score']
+            total = data['usage_count']
             hsk1 = data['usage_hsk1']
             hsk2 = data['usage_hsk2']
             hsk3 = data['usage_hsk3']
             meaning = data['meaning'][:35]
-            print(f"  {component:>4} | {score:>5} | {hsk1:>4} | {hsk2:>4} | {hsk3:>4} | {meaning}")
+            print(f"  {component:>4} | {score:>5} | {total:>5} | {hsk1:>4} | {hsk2:>4} | {hsk3:>4} | {meaning}")
         print()
         
         return component_data
@@ -431,12 +459,12 @@ class HSKDeckBuilder:
         # Export components (as radicals for consistency)
         if self.components:
             comp_df = pd.DataFrame(list(self.components.values()))
+            # Sort by weighted productivity_score (descending)
             comp_df = comp_df.sort_values('productivity_score', ascending=False)
-            # Rename columns for consistency with original format
-            # Include HSK breakdown columns
-            comp_df = comp_df[['component', 'meaning', 'productivity_score', 'usage_hsk1', 'usage_hsk2', 'usage_hsk3']].rename(columns={
-                'component': 'radical',
-                'productivity_score': 'usage_count'
+            # Keep both productivity_score and usage_count
+            # Rename component to radical for consistency
+            comp_df = comp_df[['component', 'meaning', 'productivity_score', 'usage_count', 'usage_hsk1', 'usage_hsk2', 'usage_hsk3']].rename(columns={
+                'component': 'radical'
             })
             
             # Add stroke count for radicals
@@ -479,9 +507,11 @@ class HSKDeckBuilder:
             top_5 = sorted(self.components.items(), 
                           key=lambda x: x[1]['productivity_score'], 
                           reverse=True)[:5]
-            print("\n🏆 Top 5 Most Productive Components:")
+            print("\n🏆 Top 5 Most Productive Components (by weighted score):")
             for comp, data in top_5:
-                print(f"  {comp} ({data['meaning'][:30]}): used in {data['productivity_score']} characters")
+                score = data['productivity_score']
+                usage = data['usage_count']
+                print(f"  {comp} ({data['meaning'][:30]}): score {score} (used in {usage} chars)")
         
         print("=" * 70 + "\n")
 
