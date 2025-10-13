@@ -643,6 +643,118 @@ if vocab_sample:
         f.write(html)
     print(f"✓ Created data/sample_vocabulary_card.html - {vocab_sample[0].get('word', '')}")
 
+# Generate combined view with all three card types side by side using iframes
+print("\n📐 Creating combined side-by-side view...")
+combined_html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tian Hanzi Deck - Card Type Comparison</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .cards-container {
+            display: flex;
+            gap: 20px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .card-wrapper {
+            flex: 1;
+            min-width: 400px;
+            max-width: 550px;
+        }
+        .card-label {
+            text-align: center;
+            color: white;
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        iframe {
+            width: 100%;
+            height: 700px;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            background: white;
+        }
+        @media (max-width: 1400px) {
+            .cards-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .card-wrapper {
+                max-width: 700px;
+                width: 100%;
+            }
+        }
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            padding: 20px;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎴 Tian Hanzi Deck - Card Type Comparison</h1>
+        
+        <div class="cards-container">
+            <div class="card-wrapper">
+                <div class="card-label">1. Radical Card (Brown)</div>
+                <iframe src="sample_radical_card.html"></iframe>
+            </div>
+            
+            <div class="card-wrapper">
+                <div class="card-label">2. Hanzi Card (Green)</div>
+                <iframe src="sample_hanzi_card.html"></iframe>
+            </div>
+            
+            <div class="card-wrapper">
+                <div class="card-label">3. Vocabulary Card (Blue)</div>
+                <iframe src="sample_vocabulary_card.html"></iframe>
+            </div>
+        </div>
+        
+        <div class="footer">
+            💡 Each card can be flipped independently by clicking its "Show Back" button
+        </div>
+    </div>
+</body>
+</html>"""
+
+with open('data/sample_cards_combined.html', 'w', encoding='utf-8') as f:
+    f.write(combined_html)
+print("✓ Created data/sample_cards_combined.html - All three card types (using iframes)")
+
 print("\n" + "=" * 60)
 print("✨ All samples created successfully!")
 print("=" * 60)
@@ -655,4 +767,6 @@ print("\n  🎴 HTML Card Previews:")
 print("     • data/sample_radical_card.html")
 print("     • data/sample_hanzi_card.html")
 print("     • data/sample_vocabulary_card.html")
+print("     • data/sample_cards_combined.html (all 3 side-by-side)")
 print("\n💡 Open the HTML files in your browser to see card previews!")
+print("   ⭐ Try sample_cards_combined.html to see all card types at once!")

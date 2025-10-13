@@ -119,6 +119,8 @@ class HSKDeckBuilder:
         self.hanzi_data = {}
         self.components = {}
         self.component_productivity = Counter()
+        # Track component usage by HSK level
+        self.component_productivity_by_hsk = {1: Counter(), 2: Counter(), 3: Counter()}
         
     def load_vocabulary(self) -> List[Dict]:
         """
@@ -283,6 +285,11 @@ class HSKDeckBuilder:
             # Get HSK level for this hanzi
             hsk_level = self.hanzi_to_hsk.get(char, '')
             
+            # Track component usage by HSK level
+            if hsk_level and hsk_level in self.component_productivity_by_hsk:
+                for component in components:
+                    self.component_productivity_by_hsk[hsk_level][component] += 1
+            
             hanzi_data[char] = {
                 'hanzi': char,
                 'pinyin': pinyin,
@@ -322,11 +329,19 @@ class HSKDeckBuilder:
             except Exception:
                 meaning = f"Component {component}"
             
+            # Get usage counts by HSK level
+            usage_hsk1 = self.component_productivity_by_hsk[1].get(component, 0)
+            usage_hsk2 = self.component_productivity_by_hsk[2].get(component, 0)
+            usage_hsk3 = self.component_productivity_by_hsk[3].get(component, 0)
+            
             component_data[component] = {
                 'component': component,
                 'meaning': meaning,
                 'productivity_score': count,
-                'usage_count': count
+                'usage_count': count,
+                'usage_hsk1': usage_hsk1,
+                'usage_hsk2': usage_hsk2,
+                'usage_hsk3': usage_hsk3
             }
         
         self.components = component_data
@@ -334,11 +349,16 @@ class HSKDeckBuilder:
         # Show top productive components
         print(f"✅ Found {len(component_data)} unique components\n")
         print("🏆 Top 20 Most Productive Components:")
-        print("-" * 60)
+        print("-" * 80)
+        print(f"  {'Comp':>4} | {'Total':>5} | {'HSK1':>4} | {'HSK2':>4} | {'HSK3':>4} | Meaning")
+        print("-" * 80)
         for component, data in list(component_data.items())[:20]:
             score = data['productivity_score']
-            meaning = data['meaning'][:40]
-            print(f"  {component:>2} | Score: {score:>3} | {meaning}")
+            hsk1 = data['usage_hsk1']
+            hsk2 = data['usage_hsk2']
+            hsk3 = data['usage_hsk3']
+            meaning = data['meaning'][:35]
+            print(f"  {component:>4} | {score:>5} | {hsk1:>4} | {hsk2:>4} | {hsk3:>4} | {meaning}")
         print()
         
         return component_data
@@ -413,8 +433,8 @@ class HSKDeckBuilder:
             comp_df = pd.DataFrame(list(self.components.values()))
             comp_df = comp_df.sort_values('productivity_score', ascending=False)
             # Rename columns for consistency with original format
-            # Drop the duplicate usage_count column and rename appropriately
-            comp_df = comp_df[['component', 'meaning', 'productivity_score']].rename(columns={
+            # Include HSK breakdown columns
+            comp_df = comp_df[['component', 'meaning', 'productivity_score', 'usage_hsk1', 'usage_hsk2', 'usage_hsk3']].rename(columns={
                 'component': 'radical',
                 'productivity_score': 'usage_count'
             })

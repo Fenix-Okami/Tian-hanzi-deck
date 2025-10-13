@@ -47,7 +47,7 @@ def run_breakpoint_analysis():
     try:
         # Run the breakpoint analysis script
         result = subprocess.run(
-            [sys.executable, 'analyze_level_breakpoints.py'],
+            [sys.executable, 'scripts/analysis/analyze_level_breakpoints.py'],
             capture_output=True,
             text=True,
             encoding='utf-8',
@@ -263,8 +263,8 @@ if breakpoints_df is not None:
     vocab_df['tian_level'] = vocab_df['tian_level'].astype(int)
     
     # Reorder columns: tian_level first, then other important columns
-    # Radicals: tian_level, radical, meaning, usage_count, stroke_count
-    radical_cols = ['tian_level', 'radical', 'meaning', 'usage_count', 'stroke_count']
+    # Radicals: tian_level, radical, meaning, usage_count, usage_hsk1, usage_hsk2, usage_hsk3, stroke_count
+    radical_cols = ['tian_level', 'radical', 'meaning', 'usage_count', 'usage_hsk1', 'usage_hsk2', 'usage_hsk3', 'stroke_count']
     radicals_df = radicals_df[radical_cols]
     
     # Hanzi: tian_level, hsk_level, hanzi, pinyin, meaning, components, component_count, stroke_count, is_surname
