@@ -7,24 +7,29 @@ echo "🎴 HSK Mnemonic Generator - Quick Start"
 echo "=================================================="
 echo ""
 
-# Check if OpenAI API key is set
-if [ -z "$OPENAI_API_KEY" ]; then
+# Check if .env file exists
+if [ -f ".env" ]; then
+    echo "✓ Found .env file (API key will be loaded automatically)"
+elif [ -z "$OPENAI_API_KEY" ]; then
     echo "⚠️  OpenAI API key not found!"
     echo ""
-    echo "To use this script, you need to set your OpenAI API key."
+    echo "To use this script, you need to configure your OpenAI API key."
     echo ""
-    echo "Get your API key from: https://platform.openai.com/api-keys"
+    echo "Option 1 (Recommended): Use .env file"
+    echo "  1. Copy .env.example to .env: cp .env.example .env"
+    echo "  2. Edit .env and add your API key"
+    echo "  3. Get your key from: https://platform.openai.com/api-keys"
     echo ""
-    echo "Then set it with:"
-    echo "  export OPENAI_API_KEY='your-key-here'"
+    echo "Option 2: Set environment variable"
+    echo "  export OPENAI_API_KEY='sk-proj-xxxxxxxxxxxxxxxxxxxxx'"
     echo ""
     echo "Or run in test mode without API key (creates placeholders):"
-    echo "  python test_mnemonic_generator.py"
+    echo "  python generate_mnemonics.py --dry-run --test-mode"
     echo ""
     exit 1
+else
+    echo "✓ OpenAI API key found in environment"
 fi
-
-echo "✓ OpenAI API key found"
 echo ""
 
 # Activate virtual environment
@@ -49,16 +54,15 @@ echo "=================================================="
 echo ""
 echo "This will:"
 echo "  • Process 899 hanzi characters"
-echo "  • Process 2,227 vocabulary words"
 echo "  • Generate creative mnemonics using OpenAI"
 echo ""
-echo "Estimated cost: ~$0.50 - $1.00"
-echo "Estimated time: ~1 hour"
+echo "Estimated cost: ~$0.30 - $0.50"
+echo "Estimated time: ~30-45 minutes"
 echo ""
 read -p "Press Enter to continue or Ctrl+C to cancel..."
 
-# Run the generator
-python generate_mnemonics.py
+# Run the generator (hanzi only)
+python generate_mnemonics.py --types hanzi
 
 echo ""
 echo "=================================================="
@@ -66,6 +70,9 @@ echo "✨ Done!"
 echo "=================================================="
 echo ""
 echo "Generated files:"
-echo "  📝 data/hanzi_mnemonics.csv"
-echo "  📚 data/vocabulary_mnemonics.csv"
+echo "  📝 data/hanzi_mnemonic.csv"
+echo ""
+echo "To generate other types, use:"
+echo "  python generate_mnemonics.py --types radicals,vocab"
+echo "  python generate_mnemonics.py --types all"
 echo ""

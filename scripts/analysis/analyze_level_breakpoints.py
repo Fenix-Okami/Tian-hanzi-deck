@@ -65,8 +65,9 @@ def find_breakpoints(radicals_df, hanzi_df, min_hanzi_per_level=20):
     print(f"🔍 Finding breakpoints (target: ≥{min_hanzi_per_level} hanzi per level)...")
     print("=" * 70)
     
-    # Sort radicals by productivity (already done in data, but ensure it)
-    radicals_sorted = radicals_df.sort_values('usage_count', ascending=False).reset_index(drop=True)
+    # Sort radicals by weighted productivity_score (HSK1×5 + HSK2×3 + HSK3×1)
+    # This prioritizes radicals that appear in HSK1 characters
+    radicals_sorted = radicals_df.sort_values('productivity_score', ascending=False).reset_index(drop=True)
     
     # Parse all hanzi components once, and identify 0-component hanzi
     hanzi_components_list = []

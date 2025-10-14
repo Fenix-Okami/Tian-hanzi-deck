@@ -243,8 +243,8 @@ if breakpoints_df is not None:
         vocab_df = vocab_df.drop(columns=['tian_level'])
     
     # Sort dataframes FIRST (using 'level' column), then rename
-    # Radicals: Sort by level (ascending), then usage_count (descending - most productive first)
-    radicals_df = radicals_df.sort_values(['level', 'usage_count'], ascending=[True, False])
+    # Radicals: Sort by level (ascending), then productivity_score (descending - HSK1-weighted score)
+    radicals_df = radicals_df.sort_values(['level', 'productivity_score'], ascending=[True, False])
     
     # Hanzi: Sort by level, hsk_level, component_count (simpler first)
     hanzi_df = hanzi_df.sort_values(['level', 'hsk_level', 'component_count'], ascending=[True, True, True])
@@ -292,11 +292,15 @@ RADICAL_MODEL_ID = random.randrange(1 << 30, 1 << 31)
 HANZI_MODEL_ID = random.randrange(1 << 30, 1 << 31)
 VOCAB_MODEL_ID = random.randrange(1 << 30, 1 << 31)
 
-# Define unique deck IDs (parent and three subdecks)
+# Define unique deck IDs (parent and seven subdecks)
 PARENT_DECK_ID = random.randrange(1 << 30, 1 << 31)
 RADICAL_DECK_ID = random.randrange(1 << 30, 1 << 31)
-HANZI_DECK_ID = random.randrange(1 << 30, 1 << 31)
-VOCAB_DECK_ID = random.randrange(1 << 30, 1 << 31)
+HANZI_HSK1_DECK_ID = random.randrange(1 << 30, 1 << 31)
+HANZI_HSK2_DECK_ID = random.randrange(1 << 30, 1 << 31)
+HANZI_HSK3_DECK_ID = random.randrange(1 << 30, 1 << 31)
+VOCAB_HSK1_DECK_ID = random.randrange(1 << 30, 1 << 31)
+VOCAB_HSK2_DECK_ID = random.randrange(1 << 30, 1 << 31)
+VOCAB_HSK3_DECK_ID = random.randrange(1 << 30, 1 << 31)
 
 # Card model for Radicals (Brown theme)
 radical_model = genanki.Model(
@@ -644,20 +648,42 @@ vocab_model = genanki.Model(
     '''
 )
 
-# Create parent deck and three subdecks
+# Create parent deck and seven subdecks
 radical_deck = genanki.Deck(
     RADICAL_DECK_ID,
     'HSK 1-3 Hanzi Deck::1. Radicals'
 )
 
-hanzi_deck = genanki.Deck(
-    HANZI_DECK_ID,
-    'HSK 1-3 Hanzi Deck::2. Hanzi'
+# Hanzi subdecks by HSK level
+hanzi_hsk1_deck = genanki.Deck(
+    HANZI_HSK1_DECK_ID,
+    'HSK 1-3 Hanzi Deck::2. Hanzi::HSK 1'
 )
 
-vocab_deck = genanki.Deck(
-    VOCAB_DECK_ID,
-    'HSK 1-3 Hanzi Deck::3. Vocabulary'
+hanzi_hsk2_deck = genanki.Deck(
+    HANZI_HSK2_DECK_ID,
+    'HSK 1-3 Hanzi Deck::2. Hanzi::HSK 2'
+)
+
+hanzi_hsk3_deck = genanki.Deck(
+    HANZI_HSK3_DECK_ID,
+    'HSK 1-3 Hanzi Deck::2. Hanzi::HSK 3'
+)
+
+# Vocabulary subdecks by HSK level
+vocab_hsk1_deck = genanki.Deck(
+    VOCAB_HSK1_DECK_ID,
+    'HSK 1-3 Hanzi Deck::3. Vocabulary::HSK 1'
+)
+
+vocab_hsk2_deck = genanki.Deck(
+    VOCAB_HSK2_DECK_ID,
+    'HSK 1-3 Hanzi Deck::3. Vocabulary::HSK 2'
+)
+
+vocab_hsk3_deck = genanki.Deck(
+    VOCAB_HSK3_DECK_ID,
+    'HSK 1-3 Hanzi Deck::3. Vocabulary::HSK 3'
 )
 
 print("🎴 Creating Anki cards...")
@@ -680,8 +706,10 @@ for idx, row in radicals_df.iterrows():
 
 print(f"   ✓ Added {len(radicals_df)} radical cards")
 
-# Add hanzi cards
+# Add hanzi cards to appropriate HSK subdeck
 print(f"\n🔤 Adding {len(hanzi_df)} hanzi cards...")
+hanzi_counts = {'hsk1': 0, 'hsk2': 0, 'hsk3': 0, 'unknown': 0}
+
 for idx, row in hanzi_df.iterrows():
     # Use correct column names: 'hanzi' not 'character', 'components' not 'radicals'
     char = row.get('hanzi', row.get('character', ''))
@@ -693,11 +721,28 @@ for idx, row in hanzi_df.iterrows():
     # Handle potential NaN values for hsk_level
     hsk_level = row.get('hsk_level', '')
     if pd.notna(hsk_level):
-        hsk_level_str = str(int(hsk_level))
-        hsk_tag = f'hsk{int(hsk_level)}'
+        hsk_level_int = int(hsk_level)
+        hsk_level_str = str(hsk_level_int)
+        hsk_tag = f'hsk{hsk_level_int}'
+        
+        # Select the appropriate deck
+        if hsk_level_int == 1:
+            target_deck = hanzi_hsk1_deck
+            hanzi_counts['hsk1'] += 1
+        elif hsk_level_int == 2:
+            target_deck = hanzi_hsk2_deck
+            hanzi_counts['hsk2'] += 1
+        elif hsk_level_int == 3:
+            target_deck = hanzi_hsk3_deck
+            hanzi_counts['hsk3'] += 1
+        else:
+            target_deck = hanzi_hsk1_deck  # Default to HSK1
+            hanzi_counts['unknown'] += 1
     else:
         hsk_level_str = ''
         hsk_tag = 'hsk-unknown'
+        target_deck = hanzi_hsk1_deck  # Default to HSK1
+        hanzi_counts['unknown'] += 1
     
     note = genanki.Note(
         model=hanzi_model,
@@ -713,12 +758,17 @@ for idx, row in hanzi_df.iterrows():
         ],
         tags=['hanzi', hsk_tag, f'tian-{int(row["tian_level"])}']
     )
-    hanzi_deck.add_note(note)
+    target_deck.add_note(note)
 
-print(f"   ✓ Added {len(hanzi_df)} hanzi cards")
+print(f"   ✓ Added {len(hanzi_df)} hanzi cards:")
+print(f"      • HSK 1: {hanzi_counts['hsk1']} cards")
+print(f"      • HSK 2: {hanzi_counts['hsk2']} cards")
+print(f"      • HSK 3: {hanzi_counts['hsk3']} cards")
 
-# Add vocabulary cards
+# Add vocabulary cards to appropriate HSK subdeck
 print(f"\n📚 Adding {len(vocab_df)} vocabulary cards...")
+vocab_counts = {'hsk1': 0, 'hsk2': 0, 'hsk3': 0}
+
 for idx, row in vocab_df.iterrows():
     word = str(row['word'])
     pinyin = str(row['pinyin'])
@@ -726,6 +776,22 @@ for idx, row in vocab_df.iterrows():
     
     # Create character breakdown without "+" (just space-separated)
     character_breakdown = ' '.join(list(word))
+    
+    hsk_level = int(row['hsk_level'])
+    
+    # Select the appropriate deck
+    if hsk_level == 1:
+        target_deck = vocab_hsk1_deck
+        vocab_counts['hsk1'] += 1
+    elif hsk_level == 2:
+        target_deck = vocab_hsk2_deck
+        vocab_counts['hsk2'] += 1
+    elif hsk_level == 3:
+        target_deck = vocab_hsk3_deck
+        vocab_counts['hsk3'] += 1
+    else:
+        target_deck = vocab_hsk1_deck  # Default to HSK1
+        vocab_counts['hsk1'] += 1
     
     note = genanki.Note(
         model=vocab_model,
@@ -736,14 +802,17 @@ for idx, row in vocab_df.iterrows():
             ruby_text,
             character_breakdown,
             str(row.get('example', '')),
-            str(int(row['hsk_level'])),
+            str(hsk_level),
             str(int(row['tian_level'])),
         ],
-        tags=['vocabulary', f'hsk{int(row["hsk_level"])}', f'tian-{int(row["tian_level"])}']
+        tags=['vocabulary', f'hsk{hsk_level}', f'tian-{int(row["tian_level"])}']
     )
-    vocab_deck.add_note(note)
+    target_deck.add_note(note)
 
-print(f"   ✓ Added {len(vocab_df)} vocabulary cards")
+print(f"   ✓ Added {len(vocab_df)} vocabulary cards:")
+print(f"      • HSK 1: {vocab_counts['hsk1']} cards")
+print(f"      • HSK 2: {vocab_counts['hsk2']} cards")
+print(f"      • HSK 3: {vocab_counts['hsk3']} cards")
 
 # Create output directory if it doesn't exist
 os.makedirs('anki_deck', exist_ok=True)
@@ -753,8 +822,13 @@ output_file = 'anki_deck/HSK_1-3_Hanzi_Deck.apkg'
 print(f"\n💾 Saving Anki deck to {output_file}...")
 
 try:
-    # Package all three subdecks together
-    genanki.Package([radical_deck, hanzi_deck, vocab_deck]).write_to_file(output_file)
+    # Package all seven subdecks together
+    all_decks = [
+        radical_deck,
+        hanzi_hsk1_deck, hanzi_hsk2_deck, hanzi_hsk3_deck,
+        vocab_hsk1_deck, vocab_hsk2_deck, vocab_hsk3_deck
+    ]
+    genanki.Package(all_decks).write_to_file(output_file)
     print("   ✓ Deck saved successfully!")
     
     total_cards = len(radicals_df) + len(hanzi_df) + len(vocab_df)
@@ -762,8 +836,14 @@ try:
     print(f"✅ SUCCESS! Created Anki deck with {total_cards} cards:")
     print(f"   📦 HSK 1-3 Hanzi Deck (parent)")
     print(f"      ├── 1. Radicals: {len(radicals_df)} cards")
-    print(f"      ├── 2. Hanzi: {len(hanzi_df)} cards")
-    print(f"      └── 3. Vocabulary: {len(vocab_df)} cards")
+    print(f"      ├── 2. Hanzi:")
+    print(f"      │   ├── HSK 1: {hanzi_counts['hsk1']} cards")
+    print(f"      │   ├── HSK 2: {hanzi_counts['hsk2']} cards")
+    print(f"      │   └── HSK 3: {hanzi_counts['hsk3']} cards")
+    print(f"      └── 3. Vocabulary:")
+    print(f"          ├── HSK 1: {vocab_counts['hsk1']} cards")
+    print(f"          ├── HSK 2: {vocab_counts['hsk2']} cards")
+    print(f"          └── HSK 3: {vocab_counts['hsk3']} cards")
     print(f"{'='*60}")
     print(f"\n📦 Import {output_file} into Anki to start learning!")
     
