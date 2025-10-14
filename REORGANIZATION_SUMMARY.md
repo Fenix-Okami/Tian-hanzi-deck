@@ -41,9 +41,8 @@ Tian-hanzi-deck/
 **Test coverage:**
 - Pinyin tone conversion (all edge cases)
 - Surname cleaning from definitions
-- HSKDeckBuilder initialization and methods
-- Hanzi extraction from vocabulary
-- Component productivity calculation
+- Deck build configuration defaults
+- DeckBuilder export pipeline with mocked dependencies
 - DataFrame creation and export
 
 **All 21 tests pass! ✅**
@@ -164,9 +163,12 @@ pytest tests/test_utilities.py -v
 ## 📚 Key Files
 
 **Package code:**
-- `src/tian_hanzi/data_generator.py` - Core HSK data extraction
-- `src/tian_hanzi/utils/pinyin_converter.py` - Pinyin conversion
-- `src/tian_hanzi/utils/card_utils.py` - Card formatting
+- `src/tian_hanzi/core/deck_pipeline.py` - Modular deck build orchestration
+- `src/tian_hanzi/core/cards.py` - Card formatting helpers
+- `src/tian_hanzi/core/pinyin.py` - Pinyin conversion utilities
+- `src/tian_hanzi/core/storage.py` - Parquet persistence helpers
+- `src/tian_hanzi/cli/` - Typer-powered CLI entry points
+- `src/tian_hanzi/data_generator.py` - Compatibility wrapper for legacy imports
 
 **Tests:**
 - `tests/test_utilities.py` - Utility function tests

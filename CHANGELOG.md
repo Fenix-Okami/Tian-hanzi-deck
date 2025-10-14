@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2025-10-10
+
+### 🚧 Streamlining groundwork
+
+- Introduced a modular `src/tian_hanzi/core/` package that now houses card helpers, pinyin conversion, parquet storage, scoring, and the new composable deck pipeline.
+- Added a Typer-based CLI (`python -m tian_hanzi.cli`) with `deck`, `analyze`, and `validate` command groups; the legacy `generate_hsk_deck_cli.py` now forwards to the new interface.
+- Removed duplicate root-level utilities (`card_utils.py`, `pinyin_converter.py`, `parquet_utils.py`, `hsk_scorer.py`) in favour of package modules and compatibility shims under `tian_hanzi.utils`.
+- Replaced the monolithic `HSKDeckBuilder` implementation with a thin compatibility wrapper delegating to `DeckBuilder` from `core.deck_pipeline`.
+- Updated documentation and tests to reflect the CLI workflow and modular layout.
+
 ## [2.0.0] - 2025-10-10
 
 ### 🎯 Major Release: HSK-Based Deck with Complete Overhaul

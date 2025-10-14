@@ -23,7 +23,7 @@ def analyze_hsk_components():
     vocab_file = Path("data/vocabulary.csv")
     
     if not comp_file.exists():
-        print("❌ Component file not found. Run generate_hsk_deck.py first.")
+        print("❌ Component file not found. Run `tian-hanzi deck build` first.")
         return
     
     comp_df = pd.read_csv(comp_file)

@@ -1,6 +1,6 @@
 """Unit tests for utility functions"""
 import pytest
-from tian_hanzi.utils.pinyin_converter import numbered_to_accented
+from tian_hanzi.core.pinyin import numbered_to_accented
 
 
 class TestPinyinConverter:
@@ -62,7 +62,7 @@ class TestDataCleaning:
     
     def test_clean_surname_from_definition(self):
         """Test surname removal from definitions"""
-        from tian_hanzi.data_generator import clean_surname_from_definition
+        from tian_hanzi.core.cards import clean_surname_from_definition
         
         # Simple surname at start
         result, is_surname = clean_surname_from_definition("surname Wang")

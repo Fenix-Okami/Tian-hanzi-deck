@@ -91,23 +91,32 @@ When adding new functionality, always include tests:
 Example test:
 
 ```python
+from unittest.mock import MagicMock
+
 import pytest
-from tian_hanzi.data_generator import HSKDeckBuilder
+from tian_hanzi.core.deck_pipeline import DeckBuilder, DeckBuildConfig
+
 
 class TestMyFeature:
     @pytest.mark.unit
-    def test_basic_functionality(self):
-        """Test basic feature behavior"""
-        builder = HSKDeckBuilder()
-        result = builder.my_method()
-        assert result is not None
-    
+    def test_basic_functionality(self, monkeypatch):
+        builder = DeckBuilder(
+            DeckBuildConfig(hsk_levels=(1,), output_dir="/tmp"),
+            dictionary=MagicMock(),
+            decomposer=MagicMock(),
+            stroke_counter=lambda _: 1,
+        )
+        monkeypatch.setattr(builder.repository, "load_vocabulary", lambda *_: [])
+        monkeypatch.setattr(builder.repository, "load_hanzi_levels", lambda *_: {})
+        monkeypatch.setattr(builder.repository, "extract_hanzi_from_vocabulary", lambda *_: set())
+        result = builder.build()
+        assert "vocabulary" in result
+
     @pytest.mark.integration
-    def test_with_real_data(self):
-        """Test with actual HSK data"""
-        builder = HSKDeckBuilder(hsk_levels=[1])
-        builder.load_vocabulary()
-        assert len(builder.vocabulary) > 0
+    def test_with_real_data(self, tmp_path):
+        builder = DeckBuilder(DeckBuildConfig(output_dir=str(tmp_path)))
+        builder.build()
+        assert tmp_path.joinpath("vocabulary.csv").exists()
 ```
 
 ## Making Changes

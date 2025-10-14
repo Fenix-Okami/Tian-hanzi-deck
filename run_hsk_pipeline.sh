@@ -22,9 +22,9 @@ if [ -d "venv" ]; then
 fi
 
 # Step 1: Generate HSK data
-echo "📊 Step 1/2: Generating HSK 1-3 data..."
+echo "📊 Step 1/3: Generating HSK 1-3 data..."
 echo "----------------------------------------"
-python generate_hsk_deck.py
+python -m tian_hanzi.cli deck build --level 1 --level 2 --level 3
 if [ $? -ne 0 ]; then
     echo "❌ Error in data generation!"
     exit 1
