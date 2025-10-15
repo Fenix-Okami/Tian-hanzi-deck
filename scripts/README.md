@@ -45,8 +45,8 @@ python scripts/validation/verify_anki_deck.py
 ```
 
 Note: Some scripts may require generated data files in the `data/` directory.
-Run the main pipeline first if needed:
+Generate them via the new CLI:
 
 ```bash
-bash run_hsk_pipeline.sh
+python -m tian_hanzi.cli deck build
 ```

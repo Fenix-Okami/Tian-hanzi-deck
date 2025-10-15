@@ -3,12 +3,14 @@
 ## Overview
 Enhanced the Tian Hanzi Deck pipeline to include HSK-level usage breakdown for radicals and automatic HTML sample generation.
 
+> **2025-10-10 Update:** `generate_hsk_deck.py` has been superseded by the modular `tian-hanzi deck build` CLI command which now performs the same data extraction using the refactored pipeline.
+
 ## Changes Made (October 13, 2025)
 
 ### 1. HSK Level Breakdown for Radicals
 
 **Modified Files:**
-- `generate_hsk_deck.py`
+- `tian_hanzi/core/deck_pipeline.py`
 - `create_hsk_deck.py`
 - `create_samples.py`
 
@@ -38,7 +40,7 @@ This helps understand:
 
 **New Pipeline Steps:**
 The pipeline now has 3 steps instead of 2:
-1. **Step 1/3:** Generate HSK 1-3 data (`generate_hsk_deck.py`)
+1. **Step 1/3:** Generate HSK 1-3 data (`tian-hanzi deck build`)
 2. **Step 2/3:** Create Anki deck with dynamic levels (`create_hsk_deck.py`)
 3. **Step 3/3:** Generate HTML card previews and sample CSVs (`create_samples.py`) ✨ NEW
 

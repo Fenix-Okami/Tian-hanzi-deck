@@ -9,11 +9,9 @@ An Anki deck for learning Chinese characters through dependency-based progressio
 Tian-hanzi-deck/
 ├── src/                          # Source code package
 │   └── tian_hanzi/              # Main package
-│       ├── data_generator.py    # HSK data extraction
-│       └── utils/               # Utility modules
-│           ├── pinyin_converter.py
-│           ├── parquet_manager.py
-│           └── card_utils.py
+│       ├── cli/                 # Typer-based CLI modules
+│       ├── core/                # Deck pipeline and utilities
+│       └── data_generator.py    # Compatibility wrapper around core pipeline
 │
 ├── tests/                       # Unit tests (pytest)
 │   ├── conftest.py             # Test fixtures
@@ -25,7 +23,7 @@ Tian-hanzi-deck/
 │   ├── validation/             # Data validation
 │   └── legacy/                 # Old test scripts
 │
-├── generate_hsk_deck.py        # Pipeline step 1: Generate data
+├── generate_hsk_deck_cli.py    # Legacy shim → tian-hanzi CLI
 ├── sort_hsk_by_dependencies.py # Pipeline step 2: Sort by deps
 ├── create_hsk_deck.py          # Pipeline step 3: Create deck
 ├── run_hsk_pipeline.sh         # Run complete pipeline
@@ -55,10 +53,10 @@ All tests should pass (21 tests covering utilities and data generation).
 ## 📖 Scripts
 
 **Pipeline (Main):**
-- `generate_hsk_deck.py` - Extract data from HSK lists
-- `sort_hsk_by_dependencies.py` - Assign dependency levels
+- `tian-hanzi deck build` - Extract data and generate artefacts
+- `sort_hsk_by_dependencies.py` - Assign dependency levels (legacy)
 - `create_hsk_deck.py` - Build Anki package
-- `run_hsk_pipeline.sh` - Run all steps
+- `run_hsk_pipeline.sh` - (legacy) wrapper that will be replaced by the CLI
 - `create_samples.py` - Sample data and HTML previews
 
 **Mnemonics (Optional):**
@@ -105,12 +103,11 @@ Each level teaches components before complex characters:
 
 ```bash
 pip install -r requirements.txt
-bash run_hsk_pipeline.sh
+python -m tian_hanzi.cli deck build --level 1 --level 2 --level 3
 ```
 
-Manual steps:
+Legacy pipeline (will be replaced as CLI expands):
 ```bash
-python generate_hsk_deck.py           # Extract HSK data
 python sort_hsk_by_dependencies.py    # Assign dependency levels
 python create_hsk_deck.py             # Build Anki deck
 ```
@@ -161,23 +158,21 @@ Cards within each level are sorted by: Level → HSK tier (1/2/3) → Frequency 
 - Components shown with meanings: "一 (one), 口 (mouth)"
 - Pinyin displayed above each character for vocabulary
 
-## � Scripts
+## 🛠️ Tooling & Scripts
 
-**Pipeline:**
-- `generate_hsk_deck.py` - Extract data from HSK lists
-- `sort_hsk_by_dependencies.py` - Assign dependency levels
-- `create_hsk_deck.py` - Build Anki package
-- `run_hsk_pipeline.sh` - Run all steps
+**Primary CLI:**
+- `tian-hanzi deck build` – Generate vocabulary, hanzi, and radical datasets
+- `tian-hanzi analyze distribution` – Placeholder for future analytics port
+- `tian-hanzi validate smoke` – Placeholder for validation smoke tests
 
-**Analysis:**
-- `analyze_hsk_components.py` - Component productivity
-- `show_levels.py` - Level distribution
-- `verify_sorting.py` - Dependency verification
-- `create_samples.py` - Sample data and HTML previews
+**Legacy pipeline:**
+- `sort_hsk_by_dependencies.py` – Assign dependency levels (to be ported)
+- `create_hsk_deck.py` – Build the final Anki package
+- `run_hsk_pipeline.sh` – Shell wrapper calling the legacy steps
 
-**Utilities:**
-- `pinyin_converter.py` - Pinyin conversion
-- `parquet_utils.py` - Data management
+**Analysis helpers (pending migration):**
+- Scripts under `scripts/analysis/` and `scripts/validation/`
+- `create_samples.py` – Sample data and HTML previews using shared card utilities
 
 ## � Data Files
 

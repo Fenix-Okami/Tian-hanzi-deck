@@ -26,7 +26,7 @@ except ImportError:
     sys.exit(1)
 
 # Import shared utility functions
-from card_utils import create_ruby_text, format_components_with_meanings
+from tian_hanzi.core.cards import create_ruby_text, format_components_with_meanings
 
 # Set seed for reproducibility
 random.seed(42)

@@ -1,13 +1,15 @@
-"""
-Tian Hanzi Deck - Core Package
+"""Tian Hanzi Deck - Core package exports."""
+from __future__ import annotations
 
-HSK-based Chinese character learning deck generator
-"""
-
-__version__ = "2.0.0"
-
+from .cli import app as cli_app
+from .core.deck_pipeline import DeckBuildConfig, DeckBuilder
 from .data_generator import HSKDeckBuilder
 
 __all__ = [
-    'HSKDeckBuilder',
+    "HSKDeckBuilder",
+    "DeckBuilder",
+    "DeckBuildConfig",
+    "cli_app",
 ]
+
+__version__ = "2.1.0"

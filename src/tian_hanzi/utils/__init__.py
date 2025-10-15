@@ -1,13 +1,13 @@
-"""Utility modules for Tian Hanzi Deck"""
+"""Legacy utility namespace maintained for backwards compatibility."""
+from __future__ import annotations
 
-from .pinyin_converter import numbered_to_accented
-from .card_utils import (
-    create_ruby_text,
-    format_components_with_meanings,
-)
+from ..core.cards import create_ruby_text, format_components_with_meanings
+from ..core.pinyin import numbered_to_accented
+from ..core.storage import ParquetDataManager
 
 __all__ = [
-    'numbered_to_accented',
-    'create_ruby_text',
-    'format_components_with_meanings',
+    "numbered_to_accented",
+    "create_ruby_text",
+    "format_components_with_meanings",
+    "ParquetDataManager",
 ]

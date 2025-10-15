@@ -8,7 +8,7 @@ long_description = readme_file.read_text(encoding="utf-8") if readme_file.exists
 
 setup(
     name="tian-hanzi-deck",
-    version="2.0.0",
+    version="2.1.0",
     author="Fenix-Okami",
     description="HSK-based Anki deck generator for learning Chinese characters",
     long_description=long_description,
@@ -39,5 +39,9 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.11",
     ],
-    # entry_points removed due to missing tian_hanzi.cli module
+    entry_points={
+        "console_scripts": [
+            "tian-hanzi=tian_hanzi.cli:main",
+        ]
+    },
 )

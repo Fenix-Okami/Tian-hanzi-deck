@@ -1,0 +1,97 @@
+scripts:
+  analysis/analyze_hsk_components.py:
+    status: migrate-to-cli
+    owner: pipeline
+    notes: Move component productivity logic into tian_hanzi.analytics.distributions
+  analysis/analyze_hsk_scores.py:
+    status: migrate-to-cli
+    owner: pipeline
+    notes: Replace with scoring helpers in tian_hanzi.core.scoring
+  analysis/analyze_level_breakpoints.py:
+    status: keep
+    owner: research
+    notes: Still required for dynamic level experiments; will expose via CLI analyze group
+  analysis/show_levels.py:
+    status: migrate-to-cli
+    owner: research
+    notes: Consolidate into analytics CLI once data sources module stabilises
+  analysis/show_stroke_stats.py:
+    status: migrate-to-cli
+    owner: research
+    notes: Use shared stroke counter utilities from deck pipeline
+  analysis/show_radical_hsk_breakdown.py:
+    status: migrate-to-cli
+    owner: research
+    notes: Blocks on new analytics.distributions module
+  legacy/test_mapping.py:
+    status: archive
+    owner: deprecated
+    notes: Superseded by pytest coverage
+  legacy/test_strokes_library.py:
+    status: archive
+    owner: deprecated
+    notes: Replace with unit tests around deck pipeline stroke counter
+  validation/check_hanzi_per_level.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Port logic to tests/test_validation_levels.py
+  validation/check_multi_char_vocab.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Combine with vocabulary fixtures in pytest suite
+  validation/check_stroke_data.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Covered by deck pipeline integration tests
+  validation/check_stroke_sources.py:
+    status: archive
+    owner: qa
+    notes: Documented in data management guide; remove after verification
+  validation/check_zero_components.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Add assertion in deck builder integration tests
+  validation/debug_breakpoint_mismatch.py:
+    status: keep
+    owner: research
+    notes: Useful manual debugger until CLI parity is achieved
+  validation/find_level_1_eligible.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Replace with deterministic fixtures
+  validation/level_summary.py:
+    status: migrate-to-cli
+    owner: qa
+    notes: Provide summary subcommand under tian-hanzi analyze group
+  validation/verify_anki_deck.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Port to integration suite once deck builder parity is confirmed
+  validation/verify_dynamic_levels.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Add CLI validate smoke coverage
+  validation/verify_final_sorting.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Combine with dependency sort assertions
+  validation/verify_hsk_levels.py:
+    status: archive
+    owner: qa
+    notes: Superseded by repository load_hanzi_levels unit tests
+  validation/verify_stroke_counts.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Covered once deck pipeline exposes component stats fixtures
+  validation/verify_tian_structure.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Replace with CLI integration test harness
+  validation/verify_vocabulary_levels.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Will be enforced by tests/test_data_generation.py follow-ups
+  validation/verify_zero_component_distribution.py:
+    status: migrate-to-pytest
+    owner: qa
+    notes: Combine with component analyzer unit coverage
