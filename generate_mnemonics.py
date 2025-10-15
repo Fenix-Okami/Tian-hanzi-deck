@@ -13,7 +13,7 @@ import generate_hanzi_mnemonics as hanzi_module
 import generate_radical_mnemonics as radical_module
 import generate_vocab_mnemonics as vocab_module
 
-DEFAULT_MODEL = "gpt-5-mini"
+DEFAULT_MODEL = "gpt-5"
 DEFAULT_RADICALS_IN = "data/radicals_tian.csv"
 DEFAULT_HANZI_IN = "data/hanzi.csv"
 DEFAULT_VOCAB_IN = "data/vocabulary.csv"

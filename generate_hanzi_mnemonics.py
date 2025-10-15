@@ -33,22 +33,52 @@ def hanzi_prompt(
     hsk_level: int,
 ) -> Tuple[str, str]:
     system = (
-        "You are a creative Chinese teacher making short, vivid mnemonics in the style of spaced repetition decks. "
-        "Keep outputs extremely concise (one or two short sentences each), memorable, and tied to the components provided."
+        "You are a creative but phonetically accurate Chinese teacher designing micro-length mnemonics "
+        "for spaced repetition decks. Your job is to make learners remember both the *meaning* (via components) "
+        "and the *pronunciation* (via pinyin). Be vivid, brief (1–2 short sentences per field), and always correct. "
+        "Avoid meta explanations—use image, story, or feeling instead."
     )
-    comp_text = ", ".join([f"{comp} ({name})" for comp, name in components_list]) if components_list else "none"
+
+    comp_text = (
+        ", ".join([f"{comp} ({name})" for comp, name in components_list])
+        if components_list
+        else "none"
+    )
+
     user = (
         "Create two mnemonics for this Chinese character.\n\n"
         f"Character: {hanzi}\n"
         f"Meaning gloss options: {meaning}\n"
-        f"Pronunciation: {pinyin}\n"
+        f"Pinyin: {pinyin}\n"
         f"Components: {comp_text}\n"
         f"HSK Level: {hsk_level}\n\n"
-        "Generate two entries:\n"
-        "Before writing, choose the most frequent everyday sense from the gloss list to anchor the story.\n"
-        "1. MEANING MNEMONIC: No more than two short sentences linking the chosen sense and components.\n"
-        "2. READING MNEMONIC: A single short sentence helping remember the sound.\n"
-        "Respond with JSON like {\"meaning_mnemonic\": \"...\", \"reading_mnemonic\": \"...\"}."
+        "1. Choose the most common everyday sense from the gloss list.\n"
+        "2. Use the components to create a short, image-rich story that evokes that sense.\n"
+        "3. For the reading mnemonic, do **both** of the following:\n"
+        "   • Describe the English-like sound that best approximates the pinyin (focus on tricky initials).\n"
+        "   • Include an emotion or gesture matching the tone pattern.\n\n"
+        "Phonetic hints for tricky initials:\n"
+        "   - j / q / x: like a soft 'chee' or 'shee' sound, tongue near the front\n"
+        "   - zh / ch / sh / r: tongue curled back; r sounds like the 's' in 'measure'\n"
+        "   - z / c / s: crisp 'ds', 'ts', 's' sounds\n"
+        "   - ü (ju, qu, xu, lü, nü): say 'ee' but round your lips like 'oo'\n\n"
+        "Tone emotion guide:\n"
+        "   1st tone = steady or high (calm, flat)\n"
+        "   2nd tone = rising (surprised, curious)\n"
+        "   3rd tone = dipping (thoughtful, doubtful)\n"
+        "   4th tone = falling (sharp, firm)\n\n"
+        "Return valid JSON:\n"
+        "{\n"
+        '  \"keyword\": \"<one lowercase English word capturing the main sense>\",\n'
+        '  \"meaning_mnemonic\": \"<1–2 short sentences using the components>\",\n'
+        '  \"reading_mnemonic\": \"<1 short sentence linking the approximate English sound and tone to the meaning>\"\n'
+        "}\n\n"
+        "Example:\n"
+        "{\n"
+        '  \"keyword\": \"origin\",\n'
+        '  \"meaning_mnemonic\": \"Two strokes lean like walking legs — one figure in motion: a person.\",\n'
+        '  \"reading_mnemonic\": \"The sound *rén* starts with a soft "rzh"—you spot someone and ask, rising with surprise, ‘rén?’\"\n'
+        "}"
     )
     return system, user
 
@@ -63,7 +93,7 @@ def generate_hanzi_row(
 ) -> Dict[str, Any]:
     hanzi = row["hanzi"]
     pinyin = row["pinyin"]
-    meaning = simple_meaning(row.get("meaning", ""))
+    meaning_gloss = simple_meaning(row.get("meaning", ""))
     components_str = row.get("components", "")
     hsk_level = int(row.get("hsk_level", 0))
     level = row.get("tian_level", row.get("level", 0))
@@ -80,33 +110,49 @@ def generate_hanzi_row(
     if not components_list and hanzi in radical_map:
         components_list.append((hanzi, radical_map.get(hanzi, hanzi)))
 
+    def extract_keyword(text: str) -> str:
+        tokens = re.findall(r"[A-Za-z]+", text or "")
+        if tokens:
+            return tokens[0].lower()
+        if text and text.strip():
+            return text.strip().split()[0].lower()
+        return hanzi.lower()
+
     if client is None:
-        meaning_mnemonic = f"[Placeholder] {hanzi} = {meaning}"
+        meaning_mnemonic = f"[Placeholder] {hanzi} = {meaning_gloss}"
         reading_mnemonic = f"[Placeholder] pronounced {pinyin}"
+        keyword = extract_keyword(meaning_gloss)
     else:
-        system, user = hanzi_prompt(hanzi, meaning, pinyin, components_list, hsk_level)
-        content = chat_call(client, model, system, user, max_tokens=240, effort="minimal", debug=debug)
+        system, user = hanzi_prompt(hanzi, meaning_gloss, pinyin, components_list, hsk_level)
+        content = chat_call(client, model, system, user, max_tokens=2000, effort="low", debug=debug)
         if debug:
             print(f"\n[DEBUG] Raw response for {hanzi}: {content}")
 
+        keyword = ""
         try:
             cleaned = re.sub(r"^```json\s*|\s*```$", "", content.strip(), flags=re.MULTILINE)
             payload = json.loads(cleaned)
+            keyword = (payload.get("keyword", "") or "").strip().lower()
             meaning_mnemonic = payload.get("meaning_mnemonic", "")
             reading_mnemonic = payload.get("reading_mnemonic", "")
         except json.JSONDecodeError:
             meaning_mnemonic, reading_mnemonic, _ = parse_tagged_response(content)
+            keyword = ""
 
-        meaning_mnemonic = meaning_mnemonic or f"[Placeholder] {hanzi} = {meaning}"
+        if not keyword:
+            keyword = extract_keyword(meaning_gloss)
+        meaning_mnemonic = meaning_mnemonic or f"[Placeholder] {hanzi} = {meaning_gloss}"
         reading_mnemonic = reading_mnemonic or f"[Placeholder] pronounced {pinyin}"
         time.sleep(rate_delay)
+
+    meaning_keyword = keyword or extract_keyword(meaning_gloss)
 
     components_out = components_str if components_str else "|".join(comp for comp, _ in components_list)
 
     return {
         "hanzi": hanzi,
         "pinyin": pinyin,
-        "meaning": meaning,
+        "meaning": meaning_keyword,
         "components": components_out,
         "hsk_level": hsk_level,
         "tian_level": level,
