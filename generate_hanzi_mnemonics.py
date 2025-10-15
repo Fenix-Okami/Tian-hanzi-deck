@@ -34,19 +34,20 @@ def hanzi_prompt(
 ) -> Tuple[str, str]:
     system = (
         "You are a creative Chinese teacher making short, vivid mnemonics in the style of spaced repetition decks. "
-        "Keep outputs concise, memorable, and tied to the components provided."
+        "Keep outputs extremely concise (one or two short sentences each), memorable, and tied to the components provided."
     )
     comp_text = ", ".join([f"{comp} ({name})" for comp, name in components_list]) if components_list else "none"
     user = (
         "Create two mnemonics for this Chinese character.\n\n"
         f"Character: {hanzi}\n"
-        f"Meaning: {meaning}\n"
+        f"Meaning gloss options: {meaning}\n"
         f"Pronunciation: {pinyin}\n"
         f"Components: {comp_text}\n"
         f"HSK Level: {hsk_level}\n\n"
         "Generate two entries:\n"
-        "1. MEANING MNEMONIC: 2-3 sentences linking the components to the meaning.\n"
-        "2. READING MNEMONIC: 1-2 sentences helping remember the sound.\n"
+        "Before writing, choose the most frequent everyday sense from the gloss list to anchor the story.\n"
+        "1. MEANING MNEMONIC: No more than two short sentences linking the chosen sense and components.\n"
+        "2. READING MNEMONIC: A single short sentence helping remember the sound.\n"
         "Respond with JSON like {\"meaning_mnemonic\": \"...\", \"reading_mnemonic\": \"...\"}."
     )
     return system, user
@@ -58,6 +59,7 @@ def generate_hanzi_row(
     rate_delay: float,
     row: pd.Series,
     radical_map: Dict[str, str],
+    debug: bool = False,
 ) -> Dict[str, Any]:
     hanzi = row["hanzi"]
     pinyin = row["pinyin"]
@@ -66,19 +68,26 @@ def generate_hanzi_row(
     hsk_level = int(row.get("hsk_level", 0))
     level = row.get("tian_level", row.get("level", 0))
 
+    if pd.isna(components_str):
+        components_str = ""
+
     components_list: List[Tuple[str, str]] = []
     if isinstance(components_str, str) and components_str:
         for comp in components_str.split("|"):
             comp = comp.strip()
-            if comp:
+            if comp and comp.lower() != "nan":
                 components_list.append((comp, radical_map.get(comp, comp)))
+    if not components_list and hanzi in radical_map:
+        components_list.append((hanzi, radical_map.get(hanzi, hanzi)))
 
     if client is None:
         meaning_mnemonic = f"[Placeholder] {hanzi} = {meaning}"
         reading_mnemonic = f"[Placeholder] pronounced {pinyin}"
     else:
         system, user = hanzi_prompt(hanzi, meaning, pinyin, components_list, hsk_level)
-        content = chat_call(client, model, system, user, max_tokens=240, effort="minimal")
+        content = chat_call(client, model, system, user, max_tokens=240, effort="minimal", debug=debug)
+        if debug:
+            print(f"\n[DEBUG] Raw response for {hanzi}: {content}")
 
         try:
             cleaned = re.sub(r"^```json\s*|\s*```$", "", content.strip(), flags=re.MULTILINE)
@@ -88,13 +97,17 @@ def generate_hanzi_row(
         except json.JSONDecodeError:
             meaning_mnemonic, reading_mnemonic, _ = parse_tagged_response(content)
 
+        meaning_mnemonic = meaning_mnemonic or f"[Placeholder] {hanzi} = {meaning}"
+        reading_mnemonic = reading_mnemonic or f"[Placeholder] pronounced {pinyin}"
         time.sleep(rate_delay)
+
+    components_out = components_str if components_str else "|".join(comp for comp, _ in components_list)
 
     return {
         "hanzi": hanzi,
         "pinyin": pinyin,
         "meaning": meaning,
-        "components": components_str,
+        "components": components_out,
         "hsk_level": hsk_level,
         "tian_level": level,
         "meaning_mnemonic": meaning_mnemonic,
@@ -137,7 +150,17 @@ def run(args, client: Optional[OpenAI] = None) -> Optional[OpenAI]:
     futures = []
     with ThreadPoolExecutor(max_workers=worker_count) as pool:
         for _, row in enumerate(to_process):
-            futures.append(pool.submit(generate_hanzi_row, local_client, args.model, args.rate_delay, row, radical_map))
+            futures.append(
+                pool.submit(
+                    generate_hanzi_row,
+                    local_client,
+                    args.model,
+                    args.rate_delay,
+                    row,
+                    radical_map,
+                    args.test_mode,
+                )
+            )
 
         batch: List[Dict[str, Any]] = []
         errors = 0

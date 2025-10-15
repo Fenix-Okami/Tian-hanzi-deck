@@ -71,10 +71,40 @@ def backoff_delay(attempt: int) -> float:
 def _extract_output_text(resp: Any) -> str:
     """Collapse the Responses API payload into plain text."""
     chunks: List[str] = []
-    for item in getattr(resp, "output", []) or []:
-        if item.type != "output_text":
-            continue
-        chunks.append(getattr(item, "text", ""))
+    output = getattr(resp, "output", None)
+    if output:
+        for item in output or []:
+            item_type = getattr(item, "type", "")
+            if item_type == "output_text":
+                chunks.append(getattr(item, "text", ""))
+                continue
+            if item_type == "message":
+                for content in getattr(item, "content", []) or []:
+                    c_type = getattr(content, "type", "")
+                    if c_type in {"output_text", "text"}:
+                        text = getattr(content, "text", "")
+                        if isinstance(text, list):
+                            text = "".join(text)
+                        chunks.append(text)
+    if not chunks:
+        direct = getattr(resp, "output_text", None)
+        if isinstance(direct, str):
+            chunks.append(direct)
+    if not chunks and hasattr(resp, "model_dump"):
+        try:
+            data = resp.model_dump()
+            if isinstance(data, dict):
+                messages = data.get("output") or data.get("messages") or []
+                for item in messages:
+                    if not isinstance(item, dict):
+                        continue
+                    text = item.get("text") or item.get("content")
+                    if isinstance(text, str):
+                        chunks.append(text)
+                    elif isinstance(text, list):
+                        chunks.append("".join(str(part) for part in text))
+        except Exception:
+            pass
     return "".join(chunks)
 
 
@@ -85,6 +115,7 @@ def chat_call(
     user: str,
     max_tokens: int = 300,
     effort: str = "minimal",
+    debug: bool = False,
 ) -> str:
     """Call the OpenAI Responses API with retries."""
     if client is None:
@@ -102,6 +133,16 @@ def chat_call(
                 max_output_tokens=int(max_tokens),
                 reasoning={"effort": effort} if effort else None,
             )
+            if debug:
+                try:
+                    dump = getattr(resp, "model_dump", None)
+                    if callable(dump):
+                        payload = dump()
+                    else:
+                        payload = resp
+                    print(f"\n[DEBUG] Raw API payload ({model}): {payload}")
+                except Exception as exc:
+                    print(f"\n[DEBUG] Failed to dump API payload: {exc}")
             return _extract_output_text(resp).strip()
 
         except (APIConnectionError,) as exc:
@@ -133,16 +174,13 @@ def chat_call(
 
 
 def simple_meaning(def_str: str) -> str:
-    """Extract a short learner-friendly gloss from a CEDICT style string."""
+    """Return a cleaned learner gloss while preserving multiple senses."""
     if not isinstance(def_str, str) or not def_str:
         return ""
     text = re.sub(r"variant of [^;]+;?", "", def_str, flags=re.I)
     text = re.sub(r"CL:[^;]+;?", "", text, flags=re.I)
-    text = text.strip().strip(";")
-    text = re.split(r"[\/;()]", text)[0].strip()
-    if "," in text:
-        text = text.split(",", 1)[0].strip()
-    text = re.sub(r"^[^a-zA-Z]*", "", text) or text
+    text = re.sub(r"\s+", " ", text)
+    text = text.strip(" ;/")
     return text or def_str
 
 

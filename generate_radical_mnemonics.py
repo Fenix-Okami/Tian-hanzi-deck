@@ -26,13 +26,13 @@ from mnemonic_common import (
 def radical_prompt(radical: str, meaning: str, usage_count: int) -> Tuple[str, str]:
     system = (
         "You are a creative Chinese teacher who writes quick mnemonic stories for radicals. "
-        "Keep outputs under 70 words and focus on meanings modern learners will remember."
+        "Keep outputs under 40 words, ideally a single sharp sentence learners can recall instantly."
     )
     user = (
         f"Radical: {radical}\n"
         f"Meaning: {meaning or 'n/a'}\n"
         f"Usage count (approximate): {usage_count}\n"
-        "Write a short, memorable story that teaches the meaning. "
+        "Write one short, vivid mnemonic that teaches the meaning. Keep it punchy and to the point. "
         "Return text tagged like 'Meaning: ...' and 'Usage: ...' if helpful."
     )
     return system, user
@@ -43,6 +43,7 @@ def generate_radical_row(
     model: str,
     rate_delay: float,
     row: pd.Series,
+    debug: bool = False,
 ) -> Dict[str, Any]:
     radical = row["radical"]
     meaning = simple_meaning(row.get("meaning", ""))
@@ -53,7 +54,9 @@ def generate_radical_row(
         meaning_mnemonic = f"[Placeholder] {radical} = {meaning}"
     else:
         system, user = radical_prompt(radical, meaning, usage_count)
-        content = chat_call(client, model, system, user, max_tokens=220, effort="minimal")
+        content = chat_call(client, model, system, user, max_tokens=220, effort="minimal", debug=debug)
+        if debug:
+            print(f"\n[DEBUG] Raw response for radical {radical}: {content}")
         meaning_text, _, usage = parse_tagged_response(content)
         if usage:
             meaning_text = f"{meaning_text} | Usage: {usage}"
@@ -97,7 +100,16 @@ def run(args, client: Optional[OpenAI] = None) -> Optional[OpenAI]:
     futures = []
     with ThreadPoolExecutor(max_workers=worker_count) as pool:
         for _, row in enumerate(to_process):
-            futures.append(pool.submit(generate_radical_row, local_client, args.model, args.rate_delay, row))
+            futures.append(
+                pool.submit(
+                    generate_radical_row,
+                    local_client,
+                    args.model,
+                    args.rate_delay,
+                    row,
+                    args.test_mode,
+                )
+            )
 
         batch: List[Dict[str, Any]] = []
         errors = 0

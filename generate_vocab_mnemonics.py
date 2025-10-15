@@ -26,19 +26,20 @@ from mnemonic_common import (
 def vocab_prompt(word: str, meaning: str, pinyin: str, breakdown: str, hsk_level: int) -> tuple[str, str]:
     system = (
         "You are a creative Chinese teacher who writes short mnemonics for vocabulary words. "
-        "Keep the tone practical and student-friendly."
+        "Keep the tone practical and student-friendly while staying extremely concise (one or two short sentences per section)."
     )
     user = (
         "Create two mnemonics for this Chinese word.\n\n"
         f"Word: {word}\n"
-        f"Meaning: {meaning}\n"
+        f"Meaning gloss options: {meaning}\n"
         f"Pronunciation: {pinyin}\n"
         f"Character Breakdown: {breakdown or 'n/a'}\n"
         f"HSK Level: {hsk_level}\n\n"
         "Provide:\n"
-        "MEANING: 2-3 concise sentences.\n"
-        "READING: 1-2 concise sentences.\n"
-        "USAGE: 1 short usage idea.\n"
+        "First pick the most common everyday sense from the gloss list and use it consistently.\n"
+        "MEANING: No more than two crisp sentences.\n"
+        "READING: One tight sentence.\n"
+        "USAGE: One short usage idea.\n"
         "Format exactly as:\n"
         "MEANING: ...\n"
         "READING: ...\n"
@@ -53,6 +54,7 @@ def generate_vocab_row(
     rate_delay: float,
     row: pd.Series,
     hanzi_map: Dict[str, str],
+    debug: bool = False,
 ) -> Dict[str, str]:
     word = row["word"]
     pinyin = row["pinyin"]
@@ -68,7 +70,9 @@ def generate_vocab_row(
         reading_mnemonic = f"[Placeholder] pronounced {pinyin}"
     else:
         system, user = vocab_prompt(word, meaning, pinyin, breakdown, hsk_level)
-        content = chat_call(client, model, system, user, max_tokens=220, effort="minimal")
+        content = chat_call(client, model, system, user, max_tokens=220, effort="minimal", debug=debug)
+        if debug:
+            print(f"\n[DEBUG] Raw response for vocab {word}: {content}")
         meaning_mnemonic, reading_mnemonic, usage = parse_tagged_response(content)
         if usage:
             meaning_mnemonic = f"{meaning_mnemonic} | Usage: {usage}"
@@ -121,7 +125,17 @@ def run(args, client: Optional[OpenAI] = None) -> Optional[OpenAI]:
     futures = []
     with ThreadPoolExecutor(max_workers=worker_count) as pool:
         for _, row in enumerate(to_process):
-            futures.append(pool.submit(generate_vocab_row, local_client, args.model, args.rate_delay, row, hanzi_map))
+            futures.append(
+                pool.submit(
+                    generate_vocab_row,
+                    local_client,
+                    args.model,
+                    args.rate_delay,
+                    row,
+                    hanzi_map,
+                    args.test_mode,
+                )
+            )
 
         batch: List[Dict[str, str]] = []
         errors = 0
