@@ -198,7 +198,7 @@ def parse_tagged_response(text: str) -> Tuple[str, str, str]:
             meaning = line.split(":", 1)[1].strip()
         elif line.lower().startswith("reading:"):
             reading = line.split(":", 1)[1].strip()
-        elif line.lower().startswith("usage:"):
+        elif line.lower().startswith("usage:") or line.lower().startswith("description:"):
             usage = line.split(":", 1)[1].strip()
         elif not meaning:
             meaning = line

@@ -36,7 +36,7 @@ except ImportError as e:
     sys.exit(1)
 
 # Import shared utility functions
-from card_utils import create_ruby_text, format_components_with_meanings
+from tian_hanzi.core.cards import create_ruby_text, format_components_with_meanings
 
 
 def run_breakpoint_analysis():
@@ -100,6 +100,39 @@ except Exception as e:
     print("\nMake sure to generate data files first:")
     print("  python generate_hsk_deck.py")
     sys.exit(1)
+
+# Load radicals_tian.csv for better meanings and HSK breakdown
+print("📂 Loading enhanced radical data from radicals_tian.csv...")
+try:
+    radicals_tian_df = pd.read_csv('data/radicals_tian.csv')
+    print(f"✓ Loaded enhanced data for {len(radicals_tian_df)} radicals\n")
+except Exception as e:
+    print(f"⚠️  Warning: Could not load radicals_tian.csv: {e}")
+    print("   Continuing with standard radical data\n")
+    radicals_tian_df = None
+
+
+def load_mnemonic_table(path: str, key_column: str) -> pd.DataFrame:
+    """
+    Load a mnemonic CSV by its key column, returning the last entry per key.
+    If the file is missing or invalid, returns an empty DataFrame with the key column.
+    """
+    csv_path = Path(path)
+    if not csv_path.exists():
+        print(f"�s��,?  Mnemonic file not found: {path}. Continuing without it.")
+        return pd.DataFrame(columns=[key_column])
+
+    try:
+        df = pd.read_csv(csv_path)
+    except Exception as exc:
+        print(f"�s��,?  Failed to load {path}: {exc}. Mnemonics will be left blank.")
+        return pd.DataFrame(columns=[key_column])
+
+    if key_column not in df.columns:
+        print(f"�s��,?  Mnemonic file {path} is missing the '{key_column}' column. Skipping merge.")
+        return pd.DataFrame(columns=[key_column])
+
+    return df.drop_duplicates(subset=[key_column], keep='last')
 
 
 def apply_dynamic_levels(radicals_df, hanzi_df, vocab_df, breakpoints_df):
@@ -230,6 +263,29 @@ radicals_df, hanzi_df, vocab_df = apply_dynamic_levels(
     radicals_df, hanzi_df, vocab_df, breakpoints_df
 )
 
+# Merge Tian meanings BEFORE saving (so they're in the parquet files)
+if radicals_tian_df is not None:
+    print("🔄 Merging enhanced radical meanings from radicals_tian.csv...")
+    # Keep only the columns we need from tian_df
+    tian_cols = ['radical', 'meaning']
+    tian_merge = radicals_tian_df[tian_cols].copy()
+    
+    # Merge with radicals_df, preferring Tian meanings
+    radicals_df = radicals_df.merge(
+        tian_merge,
+        on='radical',
+        how='left',
+        suffixes=('_old', '_tian')
+    )
+    
+    # Use Tian meaning if available, otherwise fall back to original
+    if 'meaning_tian' in radicals_df.columns:
+        radicals_df['meaning'] = radicals_df['meaning_tian'].fillna(radicals_df.get('meaning_old', radicals_df.get('meaning', '')))
+        # Clean up temporary columns
+        radicals_df = radicals_df.drop(columns=['meaning_old', 'meaning_tian'], errors='ignore')
+    
+    print(f"   ✓ Enhanced {len(radicals_df)} radicals with Tian meanings\n")
+
 # Save the updated data with dynamic levels and reordered columns
 if breakpoints_df is not None:
     print("💾 Saving updated data with dynamic levels...")
@@ -272,7 +328,11 @@ if breakpoints_df is not None:
     hanzi_df = hanzi_df[hanzi_cols]
     
     # Vocabulary: tian_level, hsk_level, frequency_position, word, pinyin, meaning, stroke_count, is_surname
+    # Note: 'description' column will be added later from vocab_mnemonic.csv
     vocab_cols = ['tian_level', 'hsk_level', 'frequency_position', 'word', 'pinyin', 'meaning', 'stroke_count', 'is_surname']
+    # Only include description if it exists
+    if 'description' in vocab_df.columns:
+        vocab_cols.insert(6, 'description')
     vocab_df = vocab_df[vocab_cols]
     
     # Save parquet files
@@ -286,6 +346,75 @@ if breakpoints_df is not None:
     vocab_df.to_csv('data/vocabulary.csv', index=False, encoding='utf-8-sig')
     
     print("   ✓ Saved updated parquet and CSV files\n")
+
+# Merge mnemonic CSV data so deck fields use generated mnemonics
+radical_mn_df = load_mnemonic_table('data/radicals_mnemonic.csv', 'radical')
+if not radical_mn_df.empty:
+    mn_col = 'meaning_mnemonic' if 'meaning_mnemonic' in radical_mn_df.columns else 'openai_meaning_mnemonic'
+    if mn_col in radical_mn_df.columns:
+        radical_merge = radical_mn_df[['radical', mn_col]].rename(columns={mn_col: 'meaning_mnemonic'})
+        radicals_df = radicals_df.merge(radical_merge, on='radical', how='left')
+if 'meaning_mnemonic' not in radicals_df.columns:
+    radicals_df['meaning_mnemonic'] = ''
+else:
+    radicals_df['meaning_mnemonic'] = radicals_df['meaning_mnemonic'].fillna('')
+
+hanzi_mn_df = load_mnemonic_table('data/hanzi_mnemonic.csv', 'hanzi')
+if not hanzi_mn_df.empty:
+    hanzi_merge = hanzi_mn_df.copy()
+    if 'meaning' in hanzi_merge.columns:
+        hanzi_merge = hanzi_merge.rename(columns={'meaning': 'mnemonic_meaning'})
+    hanzi_cols = ['hanzi']
+    for col in ('mnemonic_meaning', 'meaning_mnemonic', 'reading_mnemonic'):
+        if col in hanzi_merge.columns:
+            hanzi_cols.append(col)
+    if len(hanzi_cols) > 1:
+        hanzi_df = hanzi_df.merge(hanzi_merge[hanzi_cols], on='hanzi', how='left')
+for col in ('meaning_mnemonic', 'reading_mnemonic'):
+    if col not in hanzi_df.columns:
+        hanzi_df[col] = ''
+    else:
+        hanzi_df[col] = hanzi_df[col].fillna('')
+if 'mnemonic_meaning' in hanzi_df.columns:
+    hanzi_df['meaning'] = hanzi_df['mnemonic_meaning'].fillna(hanzi_df['meaning'])
+    hanzi_df = hanzi_df.drop(columns=['mnemonic_meaning'])
+hanzi_df['meaning'] = hanzi_df['meaning'].fillna('')
+
+vocab_mn_df = load_mnemonic_table('data/vocab_mnemonic.csv', 'word')
+if not vocab_mn_df.empty:
+    vocab_merge = vocab_mn_df.copy()
+    backward_map = {
+        'openai_meaning_mnemonic': 'meaning',
+        'openai_usage_mnemonic': 'description',
+    }
+    vocab_merge = vocab_merge.rename(
+        columns={old: new for old, new in backward_map.items() if old in vocab_merge.columns}
+    )
+
+    merge_cols = ['word']
+    if 'meaning' in vocab_merge.columns:
+        vocab_merge = vocab_merge.rename(columns={'meaning': 'meaning_simple'})
+        merge_cols.append('meaning_simple')
+    if 'description' in vocab_merge.columns:
+        merge_cols.append('description')
+
+    if len(merge_cols) > 1:
+        vocab_df = vocab_df.merge(vocab_merge[merge_cols], on='word', how='left')
+
+if 'meaning_simple' in vocab_df.columns:
+    vocab_df['meaning'] = vocab_df['meaning_simple'].fillna(vocab_df['meaning'])
+    vocab_df = vocab_df.drop(columns=['meaning_simple'])
+
+if 'description' not in vocab_df.columns:
+    vocab_df['description'] = ''
+else:
+    vocab_df['description'] = vocab_df['description'].fillna('')
+
+if 'tian_level' not in vocab_df.columns:
+    base_levels = vocab_df['level'] if 'level' in vocab_df.columns else 0
+    vocab_df['tian_level'] = pd.to_numeric(base_levels, errors='coerce').fillna(0).astype(int)
+else:
+    vocab_df['tian_level'] = pd.to_numeric(vocab_df['tian_level'], errors='coerce').fillna(0).astype(int)
 
 # Define unique model IDs for each card type
 RADICAL_MODEL_ID = random.randrange(1 << 30, 1 << 31)
@@ -310,7 +439,9 @@ radical_model = genanki.Model(
         {'name': 'Radical'},
         {'name': 'Meaning'},
         {'name': 'Productivity'},
-        {'name': 'Mnemonic'},
+        {'name': 'HSK1Count'},
+        {'name': 'HSK2Count'},
+        {'name': 'HSK3Count'},
         {'name': 'Level'},
     ],
     templates=[
@@ -324,8 +455,35 @@ radical_model = genanki.Model(
                 {{FrontSide}}
                 <hr id="answer">
                 <div class="meaning radical-meaning">{{Meaning}}</div>
-                <div class="productivity">appears in {{Productivity}} hanzi</div>
-                <div class="mnemonic">{{Mnemonic}}</div>
+                <div class="hsk-breakdown">
+                    <div class="breakdown-title">HSK Distribution</div>
+                    <div class="breakdown-bars">
+                        <div class="breakdown-row">
+                            <div class="breakdown-label">HSK 1</div>
+                            <div class="breakdown-bar-container">
+                                <div class="breakdown-bar hsk1" style="width: calc({{HSK1Count}} / {{Productivity}} * 100%);">
+                                    <span class="breakdown-count">{{HSK1Count}}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="breakdown-row">
+                            <div class="breakdown-label">HSK 2</div>
+                            <div class="breakdown-bar-container">
+                                <div class="breakdown-bar hsk2" style="width: calc({{HSK2Count}} / {{Productivity}} * 100%);">
+                                    <span class="breakdown-count">{{HSK2Count}}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="breakdown-row">
+                            <div class="breakdown-label">HSK 3</div>
+                            <div class="breakdown-bar-container">
+                                <div class="breakdown-bar hsk3" style="width: calc({{HSK3Count}} / {{Productivity}} * 100%);">
+                                    <span class="breakdown-count">{{HSK3Count}}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             ''',
         },
     ],
@@ -362,23 +520,67 @@ radical_model = genanki.Model(
             margin: 20px 0;
         }
         .radical-meaning { color: #8b4513; }
-        .productivity {
-            font-size: 16px;
-            color: #8b6914;
-            background-color: rgba(139, 69, 19, 0.1);
-            padding: 8px 16px;
-            border-radius: 20px;
-            display: inline-block;
-            margin: 10px 0;
-        }
-        .mnemonic {
-            font-size: 18px;
-            color: #5a4a3a;
-            margin: 20px;
+        .hsk-breakdown {
+            margin: 25px auto;
+            max-width: 400px;
+            background-color: rgba(255, 255, 255, 0.6);
             padding: 20px;
-            background-color: rgba(255, 255, 255, 0.5);
             border-radius: 12px;
             border-left: 4px solid #8b4513;
+        }
+        .breakdown-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #654321;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .breakdown-bars {
+            text-align: left;
+        }
+        .breakdown-row {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .breakdown-label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #5a4a3a;
+            min-width: 50px;
+        }
+        .breakdown-bar-container {
+            flex: 1;
+            background-color: rgba(139, 69, 19, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            height: 30px;
+            position: relative;
+        }
+        .breakdown-bar {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            min-width: 30px;
+        }
+        .breakdown-bar.hsk1 {
+            background: linear-gradient(90deg, #ff6b6b 0%, #ff8787 100%);
+        }
+        .breakdown-bar.hsk2 {
+            background: linear-gradient(90deg, #4dabf7 0%, #74c0fc 100%);
+        }
+        .breakdown-bar.hsk3 {
+            background: linear-gradient(90deg, #51cf66 0%, #8ce99a 100%);
+        }
+        .breakdown-count {
+            font-size: 13px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
         }
     '''
 )
@@ -688,16 +890,38 @@ vocab_hsk3_deck = genanki.Deck(
 
 print("🎴 Creating Anki cards...")
 
+# Ensure HSK breakdown columns exist (meanings were already merged earlier)
+# Check if HSK count columns are missing and add them if needed
+if radicals_tian_df is not None:
+    for col in ['usage_hsk1', 'usage_hsk2', 'usage_hsk3']:
+        if col not in radicals_df.columns:
+            print(f"🔄 Adding {col} column from radicals_tian.csv...")
+            # Merge just the HSK columns
+            tian_hsk = radicals_tian_df[['radical', col]].copy()
+            radicals_df = radicals_df.merge(tian_hsk, on='radical', how='left')
+            radicals_df[col] = radicals_df[col].fillna(0).astype(int)
+else:
+    # If no Tian data, create default HSK count columns
+    for col in ['usage_hsk1', 'usage_hsk2', 'usage_hsk3']:
+        if col not in radicals_df.columns:
+            radicals_df[col] = 0
+
 # Add radical cards
-print(f"\n🔷 Adding {len(radicals_df)} radical cards...")
+print(f"🔷 Adding {len(radicals_df)} radical cards...")
 for idx, row in radicals_df.iterrows():
+    hsk1 = int(row.get('usage_hsk1', 0))
+    hsk2 = int(row.get('usage_hsk2', 0))
+    hsk3 = int(row.get('usage_hsk3', 0))
+    
     note = genanki.Note(
         model=radical_model,
         fields=[
             str(row['radical']),
             str(row['meaning']),
             str(int(row['usage_count'])),
-            str(row.get('mnemonic', 'Remember this radical!')),
+            str(hsk1),
+            str(hsk2),
+            str(hsk3),
             str(int(row['tian_level'])),
         ],
         tags=['radical', 'hsk1-3', f'tian-{int(row["tian_level"])}']
@@ -751,8 +975,8 @@ for idx, row in hanzi_df.iterrows():
             str(row['meaning']),
             str(row['pinyin']),
             formatted_components,
-            str(row.get('meaning_mnemonic', 'Think about the meaning of each component.')),
-            str(row.get('reading_mnemonic', 'Remember the sound through practice.')),
+            str(row.get('meaning_mnemonic', '') or ''),
+            str(row.get('reading_mnemonic', '') or ''),
             hsk_level_str,
             str(int(row['tian_level'])),
         ],
