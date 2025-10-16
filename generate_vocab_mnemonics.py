@@ -93,7 +93,7 @@ def generate_vocab_row(
         usage_mnemonic = "[Placeholder] usage description not generated"
     else:
         system, user = vocab_prompt(word, base_meaning, pinyin, breakdown, hsk_level)
-        content = chat_call(client, model, system, user, max_tokens=220, effort="minimal", debug=debug)
+        content = chat_call(client, model, system, user, max_tokens=220, effort="low", debug=debug)
         if debug:
             print(f"\n[DEBUG] Raw response for vocab {word}: {content}")
         parsed_meaning, _, usage = parse_tagged_response(content)
@@ -110,7 +110,6 @@ def generate_vocab_row(
         "meaning": meaning_value,
         "hanzi_breakdown": breakdown,
         "hsk_level": hsk_level,
-        "level": level,
         "tian_level": tian_level,
         "description": usage_value,
     }
@@ -205,7 +204,6 @@ def run(args, client: Optional[OpenAI] = None) -> Optional[OpenAI]:
                         "meaning": "",
                         "hanzi_breakdown": "",
                         "hsk_level": 0,
-                        "level": 0,
                         "tian_level": 0,
                         "description": f"Error: {exc}",
                     }
