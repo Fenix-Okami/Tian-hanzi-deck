@@ -2,7 +2,7 @@
 """
 Create HSK 1-3 Hanzi Deck Anki Package
 =======================================
-Loads HSK 1-3 data from Parquet files and creates a complete Anki deck
+Loads HSK 1-3 data from CSV files and creates a complete Anki deck
 with radicals, hanzi, and vocabulary cards.
 
 Features:
@@ -88,15 +88,15 @@ def run_breakpoint_analysis():
 # Run breakpoint analysis first
 breakpoints_df = run_breakpoint_analysis()
 
-# Load HSK data from Parquet files
-print("📂 Loading HSK 1-3 data from Parquet files...")
+# Load HSK data from CSV files
+print("📂 Loading HSK 1-3 data from CSV files...")
 try:
-    radicals_df = pd.read_parquet('data/radicals.parquet')
-    hanzi_df = pd.read_parquet('data/hanzi.parquet')
-    vocab_df = pd.read_parquet('data/vocabulary.parquet')
+    radicals_df = pd.read_csv('data/radicals.csv')
+    hanzi_df = pd.read_csv('data/hanzi.csv')
+    vocab_df = pd.read_csv('data/vocabulary.csv')
     print(f"✓ Loaded {len(radicals_df)} radicals, {len(hanzi_df)} hanzi, {len(vocab_df)} vocabulary entries\n")
 except Exception as e:
-    print(f"\n❌ Error loading Parquet files: {e}")
+    print(f"\n❌ Error loading CSV files: {e}")
     print("\nMake sure to generate data files first:")
     print("  python generate_hsk_deck.py")
     sys.exit(1)
@@ -263,7 +263,7 @@ radicals_df, hanzi_df, vocab_df = apply_dynamic_levels(
     radicals_df, hanzi_df, vocab_df, breakpoints_df
 )
 
-# Merge Tian meanings BEFORE saving (so they're in the parquet files)
+# Merge Tian meanings BEFORE saving (so they're reflected in the CSV outputs)
 if radicals_tian_df is not None:
     print("🔄 Merging enhanced radical meanings from radicals_tian.csv...")
     # Keep only the columns we need from tian_df
@@ -335,17 +335,13 @@ if breakpoints_df is not None:
         vocab_cols.insert(6, 'description')
     vocab_df = vocab_df[vocab_cols]
     
-    # Save parquet files
-    radicals_df.to_parquet('data/radicals.parquet', index=False)
-    hanzi_df.to_parquet('data/hanzi.parquet', index=False)
-    vocab_df.to_parquet('data/vocabulary.parquet', index=False)
     
     # Save CSV files
     radicals_df.to_csv('data/radicals.csv', index=False, encoding='utf-8-sig')
     hanzi_df.to_csv('data/hanzi.csv', index=False, encoding='utf-8-sig')
     vocab_df.to_csv('data/vocabulary.csv', index=False, encoding='utf-8-sig')
     
-    print("   ✓ Saved updated parquet and CSV files\n")
+    print("   ✓ Saved updated CSV files\n")
 
 # Merge mnemonic CSV data so deck fields use generated mnemonics
 radical_mn_df = load_mnemonic_table('data/radicals_mnemonic.csv', 'radical')

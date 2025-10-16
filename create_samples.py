@@ -16,16 +16,16 @@ try:
     import pandas as pd
 except ImportError as exc:
     print(f"❌ Error: pandas is not installed ({exc})")
-    print("Install dependencies with: pip install pandas pyarrow")
+    print("Install dependencies with: pip install pandas")
     sys.exit(1)
 
 from tian_hanzi.core.samples import SampleGenerator
 
 
-def load_parquet(path: Path) -> pd.DataFrame:
-    """Load a parquet file with friendly error messages."""
+def load_dataframe(path: Path) -> pd.DataFrame:
+    """Load a CSV file with friendly error messages."""
     try:
-        return pd.read_parquet(path)
+        return pd.read_csv(path)
     except FileNotFoundError:
         print(f"❌ Required file not found: {path}")
         print("Run create_hsk_deck.py first to generate the processed data.")
@@ -39,9 +39,9 @@ def main() -> None:
     data_dir = Path("data")
     print("🎴 Generating sample artefacts from processed deck data...\n")
 
-    radicals_df = load_parquet(data_dir / "radicals.parquet")
-    hanzi_df = load_parquet(data_dir / "hanzi.parquet")
-    vocabulary_df = load_parquet(data_dir / "vocabulary.parquet")
+    radicals_df = load_dataframe(data_dir / "radicals.csv")
+    hanzi_df = load_dataframe(data_dir / "hanzi.csv")
+    vocabulary_df = load_dataframe(data_dir / "vocabulary.csv")
 
     # Load and merge hanzi mnemonics from CSV
     hanzi_mnemonic_path = data_dir / "hanzi_mnemonic.csv"
