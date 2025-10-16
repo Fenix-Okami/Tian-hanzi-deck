@@ -50,10 +50,10 @@ def _generate_samples(output_dir: Path) -> None:
     import pandas as pd
     
     try:
-        # Load the generated parquet files
-        radicals_df = pd.read_parquet(output_dir / "radicals.parquet")
-        hanzi_df = pd.read_parquet(output_dir / "hanzi.parquet")
-        vocabulary_df = pd.read_parquet(output_dir / "vocabulary.parquet")
+        # Load the generated CSV files
+        radicals_df = pd.read_csv(output_dir / "radicals.csv")
+        hanzi_df = pd.read_csv(output_dir / "hanzi.csv")
+        vocabulary_df = pd.read_csv(output_dir / "vocabulary.csv")
         
         # Generate samples
         generator = SampleGenerator(output_dir=output_dir)

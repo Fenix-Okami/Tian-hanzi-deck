@@ -119,17 +119,17 @@ def load_mnemonic_table(path: str, key_column: str) -> pd.DataFrame:
     """
     csv_path = Path(path)
     if not csv_path.exists():
-        print(f"�s��,?  Mnemonic file not found: {path}. Continuing without it.")
+        print(f"Mnemonic file not found: {path}. Continuing without it.")
         return pd.DataFrame(columns=[key_column])
 
     try:
         df = pd.read_csv(csv_path)
     except Exception as exc:
-        print(f"�s��,?  Failed to load {path}: {exc}. Mnemonics will be left blank.")
+        print(f"Failed to load {path}: {exc}. Mnemonics will be left blank.")
         return pd.DataFrame(columns=[key_column])
 
     if key_column not in df.columns:
-        print(f"�s��,?  Mnemonic file {path} is missing the '{key_column}' column. Skipping merge.")
+        print(f"Mnemonic file {path} is missing the '{key_column}' column. Skipping merge.")
         return pd.DataFrame(columns=[key_column])
 
     return df.drop_duplicates(subset=[key_column], keep='last')
