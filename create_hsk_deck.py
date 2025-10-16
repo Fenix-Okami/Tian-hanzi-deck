@@ -328,7 +328,7 @@ if breakpoints_df is not None:
     hanzi_df = hanzi_df[hanzi_cols]
     
     # Vocabulary: tian_level, hsk_level, frequency_position, word, pinyin, meaning, stroke_count, is_surname
-    # Note: 'description' column will be added later from vocab_mnemonic.csv
+    # Note: 'description' column will be added later from vocabulary_mnemonic.csv
     vocab_cols = ['tian_level', 'hsk_level', 'frequency_position', 'word', 'pinyin', 'meaning', 'stroke_count', 'is_surname']
     # Only include description if it exists
     if 'description' in vocab_df.columns:
@@ -376,26 +376,26 @@ if 'mnemonic_meaning' in hanzi_df.columns:
     hanzi_df = hanzi_df.drop(columns=['mnemonic_meaning'])
 hanzi_df['meaning'] = hanzi_df['meaning'].fillna('')
 
-vocab_mn_df = load_mnemonic_table('data/vocab_mnemonic.csv', 'word')
-if not vocab_mn_df.empty:
-    vocab_merge = vocab_mn_df.copy()
+vocabulary_mn_df = load_mnemonic_table('data/vocabulary_mnemonic.csv', 'word')
+if not vocabulary_mn_df.empty:
+    vocabulary_merge = vocabulary_mn_df.copy()
     backward_map = {
         'openai_meaning_mnemonic': 'meaning',
         'openai_usage_mnemonic': 'description',
     }
-    vocab_merge = vocab_merge.rename(
-        columns={old: new for old, new in backward_map.items() if old in vocab_merge.columns}
+    vocabulary_merge = vocabulary_merge.rename(
+        columns={old: new for old, new in backward_map.items() if old in vocabulary_merge.columns}
     )
 
     merge_cols = ['word']
-    if 'meaning' in vocab_merge.columns:
-        vocab_merge = vocab_merge.rename(columns={'meaning': 'meaning_simple'})
+    if 'meaning' in vocabulary_merge.columns:
+        vocabulary_merge = vocabulary_merge.rename(columns={'meaning': 'meaning_simple'})
         merge_cols.append('meaning_simple')
-    if 'description' in vocab_merge.columns:
+    if 'description' in vocabulary_merge.columns:
         merge_cols.append('description')
 
     if len(merge_cols) > 1:
-        vocab_df = vocab_df.merge(vocab_merge[merge_cols], on='word', how='left')
+        vocab_df = vocab_df.merge(vocabulary_merge[merge_cols], on='word', how='left')
 
 if 'meaning_simple' in vocab_df.columns:
     vocab_df['meaning'] = vocab_df['meaning_simple'].fillna(vocab_df['meaning'])

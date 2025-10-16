@@ -139,14 +139,14 @@ class SampleGenerator:
         """Print list of generated files."""
         print("\nGenerated files:")
         print("  📊 CSV Samples:")
-        print("     • data/radicals_sample.csv")
-        print("     • data/hanzi_sample.csv")
-        print("     • data/vocabulary_sample.csv")
+        print(f"     • {self.output_dir / 'radicals_sample.csv'}")
+        print(f"     • {self.output_dir / 'hanzi_sample.csv'}")
+        print(f"     • {self.output_dir / 'vocabulary_sample.csv'}")
         print("\n  🎴 HTML Card Previews:")
-        print("     • data/sample_radical_card.html")
-        print("     • data/sample_hanzi_card.html")
-        print("     • data/sample_vocabulary_card.html")
-        print("     • data/sample_cards_combined.html")
+        print(f"     • {self.output_dir / 'sample_radical_card.html'}")
+        print(f"     • {self.output_dir / 'sample_hanzi_card.html'}")
+        print(f"     • {self.output_dir / 'sample_vocabulary_card.html'}")
+        print(f"     • {self.output_dir / 'sample_cards_combined.html'}")
         print("\n💡 Open the HTML files in your browser to see card previews!")
     
     @staticmethod
