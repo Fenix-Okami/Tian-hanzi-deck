@@ -1,772 +1,117 @@
 #!/usr/bin/env python3
-"""
-Create sample CSV files and HTML card previews from parquet data
-Shows 20 random entries from each subdeck
-Also generates HTML preview cards for radicals, hanzi, and vocabulary
+"""Generate sample CSV files and HTML previews using the shared SampleGenerator."""
 
-NOTE: This script loads data that has already been processed by create_hsk_deck.py
-      (with tian_level assignments, sorting, etc.)
-"""
+from __future__ import annotations
 
-import random
-import csv
 import sys
 import io
+from pathlib import Path
 
 # Windows console UTF-8 setup
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 try:
     import pandas as pd
-except ImportError:
-    print("❌ Error: pandas is not installed")
-    print("Please run: pip install pandas pyarrow")
+except ImportError as exc:
+    print(f"❌ Error: pandas is not installed ({exc})")
+    print("Install dependencies with: pip install pandas")
     sys.exit(1)
 
-# Import shared utility functions
-from tian_hanzi.core.cards import create_ruby_text, format_components_with_meanings
+from tian_hanzi.core.samples import SampleGenerator
 
-# Set seed for reproducibility
-random.seed(42)
 
-print("📊 Creating sample CSV files from parquet data...\n")
-print("ℹ️  Loading pre-processed data (with tian_level assignments from create_hsk_deck.py)\n")
+def load_dataframe(path: Path) -> pd.DataFrame:
+    """Load a CSV file with friendly error messages."""
+    try:
+        return pd.read_csv(path)
+    except FileNotFoundError:
+        print(f"❌ Required file not found: {path}")
+        print("Run create_hsk_deck.py first to generate the processed data.")
+        sys.exit(1)
+    except Exception as exc:  # pragma: no cover - passthrough diagnostics
+        print(f"❌ Failed to load {path}: {exc}")
+        sys.exit(1)
 
-# Load data from parquet files (already processed by create_hsk_deck.py)
-print("📂 Loading data from parquet files...")
-try:
-    radicals_df = pd.read_parquet('data/radicals.parquet')
-    hanzi_df = pd.read_parquet('data/hanzi.parquet')
-    vocabulary_df = pd.read_parquet('data/vocabulary.parquet')
-    print(f"✓ Loaded {len(radicals_df)} radicals, {len(hanzi_df)} hanzi, {len(vocabulary_df)} vocabulary\n")
-except Exception as e:
-    print(f"❌ Error loading data: {e}")
-    print("\nMake sure to run the pipeline first:")
-    print("  python create_hsk_deck.py")
-    sys.exit(1)
 
-# Verify expected columns
-expected_cols = {
-    'radicals': ['tian_level', 'radical', 'meaning', 'usage_count', 'stroke_count'],
-    'hanzi': ['tian_level', 'hsk_level', 'hanzi', 'pinyin', 'meaning', 'components', 'component_count', 'stroke_count', 'is_surname'],
-    'vocabulary': ['tian_level', 'hsk_level', 'frequency_position', 'word', 'pinyin', 'meaning', 'stroke_count', 'is_surname']
-}
+def main() -> None:
+    data_dir = Path("data")
+    print("🎴 Generating sample artefacts from processed deck data...\n")
 
-for name, df, cols in [('radicals', radicals_df, expected_cols['radicals']),
-                        ('hanzi', hanzi_df, expected_cols['hanzi']),
-                        ('vocabulary', vocabulary_df, expected_cols['vocabulary'])]:
-    missing = set(cols) - set(df.columns)
-    if missing:
-        print(f"⚠️  Warning: {name} missing columns: {missing}")
+    radicals_df = load_dataframe(data_dir / "radicals.csv")
+    hanzi_df = load_dataframe(data_dir / "hanzi.csv")
+    vocabulary_df = load_dataframe(data_dir / "vocabulary.csv")
 
-# Convert to list of dictionaries
-radicals = radicals_df.to_dict('records')
-hanzi = hanzi_df.to_dict('records')
-vocabulary = vocabulary_df.to_dict('records')
-
-# Sample 20 random entries from each
-print("🎲 Sampling 20 random entries from each...\n")
-radicals_sample = random.sample(radicals, min(20, len(radicals)))
-hanzi_sample = random.sample(hanzi, min(20, len(hanzi)))
-vocab_sample = random.sample(vocabulary, min(20, len(vocabulary)))
-
-# Save to CSV (preserving column order from processed data)
-print("💾 Saving sample CSV files...\n")
-
-# Save radicals
-with open('data/radicals_sample.csv', 'w', newline='', encoding='utf-8') as f:
-    if radicals:
-        writer = csv.DictWriter(f, fieldnames=radicals_df.columns.tolist())
-        writer.writeheader()
-        writer.writerows(radicals_sample)
-
-print('✓ Created data/radicals_sample.csv')
-print(f'  Columns: {list(radicals_df.columns)}')
-print(f'  Entries: {len(radicals_sample)}/{len(radicals)}')
-
-print()
-
-# Save hanzi
-with open('data/hanzi_sample.csv', 'w', newline='', encoding='utf-8') as f:
-    if hanzi:
-        writer = csv.DictWriter(f, fieldnames=hanzi_df.columns.tolist())
-        writer.writeheader()
-        writer.writerows(hanzi_sample)
-
-print('✓ Created data/hanzi_sample.csv')
-print(f'  Columns: {list(hanzi_df.columns)}')
-print(f'  Entries: {len(hanzi_sample)}/{len(hanzi)}')
-
-print()
-
-# Save vocabulary
-with open('data/vocabulary_sample.csv', 'w', newline='', encoding='utf-8') as f:
-    if vocabulary:
-        writer = csv.DictWriter(f, fieldnames=vocabulary_df.columns.tolist())
-        writer.writeheader()
-        writer.writerows(vocab_sample)
-
-print('✓ Created data/vocabulary_sample.csv')
-print(f'  Columns: {list(vocabulary_df.columns)}')
-print(f'  Entries: {len(vocab_sample)}/{len(vocabulary)}')
-
-print("\n" + "=" * 60)
-print("✨ Sample CSV files created successfully!")
-print("=" * 60)
-print("\nPreview the files:")
-print("  • data/radicals_sample.csv")
-print("  • data/hanzi_sample.csv")
-print("  • data/vocabulary_sample.csv")
-
-# Now generate HTML card previews
-print("\n" + "=" * 60)
-print("🎴 Generating HTML card previews...")
-print("=" * 60)
-
-def create_radical_card_html(radical_data):
-    """Generate HTML for a radical card preview"""
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radical Card Preview - {radical_data.get('radical', '')}</title>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            padding: 20px;
-        }}
-        .toggle-button {{
-            display: block;
-            margin: 0 auto 20px;
-            padding: 12px 24px;
-            background-color: #8b4513;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }}
-        .toggle-button:hover {{
-            background-color: #654321;
-        }}
-        .card {{
-            font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
-            text-align: center;
-            color: #4a3728;
-            background: linear-gradient(135deg, #f5e6d3 0%, #e8d5c4 100%);
-            padding: 20px;
-            max-width: 500px;
-            margin: 0 auto;
-            border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }}
-        .card-type {{
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #8b4513;
-        }}
-        .character {{
-            font-size: 120px;
-            margin: 30px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-            color: #654321;
-        }}
-        .prompt {{
-            font-size: 20px;
-            color: #6b5544;
-            margin: 20px 0;
-        }}
-        .meaning {{
-            font-size: 32px;
-            font-weight: bold;
-            margin: 20px 0;
-            color: #8b4513;
-        }}
-        .productivity {{
-            font-size: 16px;
-            color: #8b6914;
-            background-color: rgba(139, 69, 19, 0.1);
-            padding: 8px 16px;
-            border-radius: 20px;
-            display: inline-block;
-            margin: 10px 0;
-        }}
-        .mnemonic {{
-            font-size: 18px;
-            color: #5a4a3a;
-            margin: 20px;
-            padding: 20px;
-            background-color: rgba(255, 255, 255, 0.5);
-            border-radius: 12px;
-            border-left: 4px solid #8b4513;
-        }}
-        .info {{
-            font-size: 14px;
-            color: #666;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(0,0,0,0.1);
-        }}
-        .back {{
-            display: none;
-        }}
-    </style>
-</head>
-<body>
-    <button class="toggle-button" onclick="toggleCard()">Show Back</button>
-    <div class="card">
-        <div class="front">
-            <div class="card-type">Radical • Tian Level {radical_data.get('tian_level', '?')}</div>
-            <div class="character">{radical_data.get('radical', '')}</div>
-        </div>
-        <div class="back">
-            <div class="card-type">Radical • Tian Level {radical_data.get('tian_level', '?')}</div>
-            <div class="character">{radical_data.get('radical', '')}</div>
-            <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
-            <div class="meaning">{radical_data.get('meaning', 'Unknown')}</div>
-            <div class="productivity">appears in {radical_data.get('usage_count', 0)} hanzi</div>
-            <div class="mnemonic">Remember this radical!</div>
-            <div class="info">Brown theme • Productivity-based sorting</div>
-        </div>
-    </div>
-    <script>
-        let showingFront = true;
-        function toggleCard() {{
-            const front = document.querySelector('.front');
-            const back = document.querySelector('.back');
-            const button = document.querySelector('.toggle-button');
-            
-            if (showingFront) {{
-                front.style.display = 'none';
-                back.style.display = 'block';
-                button.textContent = 'Show Front';
-            }} else {{
-                front.style.display = 'block';
-                back.style.display = 'none';
-                button.textContent = 'Show Back';
-            }}
-            showingFront = !showingFront;
-        }}
-    </script>
-</body>
-</html>"""
-
-def create_hanzi_card_html(hanzi_data, radicals_df):
-    """Generate HTML for a hanzi card preview"""
-    char = hanzi_data.get('hanzi', hanzi_data.get('character', ''))
-    components_raw = hanzi_data.get('components', hanzi_data.get('radicals', 'Unknown'))
-    components = format_components_with_meanings(components_raw, radicals_df)
-    
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hanzi Card Preview - {char}</title>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            padding: 20px;
-        }}
-        .toggle-button {{
-            display: block;
-            margin: 0 auto 20px;
-            padding: 12px 24px;
-            background-color: #2e7d32;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }}
-        .toggle-button:hover {{
-            background-color: #1b5e20;
-        }}
-        .card {{
-            font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
-            text-align: center;
-            color: #2d4a2b;
-            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-            padding: 20px;
-            max-width: 500px;
-            margin: 0 auto;
-            border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }}
-        .card-type {{
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #2e7d32;
-        }}
-        .character {{
-            font-size: 120px;
-            margin: 30px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-            color: #1b5e20;
-        }}
-        .prompt {{
-            font-size: 20px;
-            color: #4a6741;
-            margin: 20px 0;
-        }}
-        .meaning {{
-            font-size: 32px;
-            font-weight: bold;
-            margin: 20px 0;
-            color: #2e7d32;
-        }}
-        .character-with-reading {{
-            margin: 30px 0;
-            line-height: 1;
-        }}
-        ruby {{
-            ruby-position: over;
-        }}
-        rt {{
-            ruby-align: center;
-            margin-bottom: 15px;
-        }}
-        .character-with-reading .character {{
-            font-size: 120px;
-            color: #1b5e20;
-        }}
-        .pinyin-reading {{
-            font-size: 28px;
-            color: #558b2f;
-            font-weight: bold;
-        }}
-        .audio-placeholder {{
-            font-size: 16px;
-            color: #666;
-            margin: 10px 0;
-            opacity: 0.7;
-        }}
-        .section {{
-            background-color: rgba(255, 255, 255, 0.5);
-            padding: 15px;
-            margin: 15px 20px;
-            border-radius: 12px;
-            border-left: 4px solid #2e7d32;
-            text-align: left;
-        }}
-        .section-title {{
-            font-weight: bold;
-            color: #2e7d32;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }}
-        .components {{
-            font-size: 18px;
-            color: #4a6741;
-        }}
-        .info {{
-            font-size: 14px;
-            color: #666;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(0,0,0,0.1);
-        }}
-        .back {{
-            display: none;
-        }}
-    </style>
-</head>
-<body>
-    <button class="toggle-button" onclick="toggleCard()">Show Back</button>
-    <div class="card">
-        <div class="front">
-            <div class="card-type">Hanzi • HSK {hanzi_data.get('hsk_level', '?')} • Tian Level {hanzi_data.get('tian_level', '?')}</div>
-            <div class="character">{char}</div>
-        </div>
-        <div class="back">
-            <div class="card-type">Hanzi • HSK {hanzi_data.get('hsk_level', '?')} • Tian Level {hanzi_data.get('tian_level', '?')}</div>
-            <div class="character-with-reading">
-                <ruby>
-                    <rb class="character">{char}</rb>
-                    <rt class="pinyin-reading">{hanzi_data.get('pinyin', '?')}</rt>
-                </ruby>
-            </div>
-            <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
-            <div class="meaning">{hanzi_data.get('meaning', 'Unknown')}</div>
-            <div class="audio-placeholder">🔊 [Audio: {hanzi_data.get('pinyin', '?')}]</div>
-            <div class="section">
-                <div class="section-title">Meaning Mnemonic</div>
-                <div class="components">Think about the meaning of each component to remember what this character means.</div>
-            </div>
-            <div class="section">
-                <div class="section-title">Reading Mnemonic</div>
-                <div class="components">Associate the sound "{hanzi_data.get('pinyin', '?')}" with the character's components.</div>
-            </div>
-            <div class="section">
-                <div class="section-title">Components</div>
-                <div class="components">{components}</div>
-            </div>
-            <div class="info">Green theme • Component-based learning</div>
-        </div>
-    </div>
-    <script>
-        let showingFront = true;
-        function toggleCard() {{
-            const front = document.querySelector('.front');
-            const back = document.querySelector('.back');
-            const button = document.querySelector('.toggle-button');
-            
-            if (showingFront) {{
-                front.style.display = 'none';
-                back.style.display = 'block';
-                button.textContent = 'Show Front';
-            }} else {{
-                front.style.display = 'block';
-                back.style.display = 'none';
-                button.textContent = 'Show Back';
-            }}
-            showingFront = !showingFront;
-        }}
-    </script>
-</body>
-</html>"""
-
-def create_vocab_card_html(vocab_data):
-    """Generate HTML for a vocabulary card preview"""
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vocabulary Card Preview - {vocab_data.get('word', '')}</title>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            padding: 20px;
-        }}
-        .toggle-button {{
-            display: block;
-            margin: 0 auto 20px;
-            padding: 12px 24px;
-            background-color: #1565c0;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }}
-        .toggle-button:hover {{
-            background-color: #0d47a1;
-        }}
-        .card {{
-            font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
-            text-align: center;
-            color: #1a237e;
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-            padding: 20px;
-            max-width: 500px;
-            margin: 0 auto;
-            border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }}
-        .card-type {{
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #1565c0;
-        }}
-        .word {{
-            font-size: 80px;
-            margin: 30px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-            color: #0d47a1;
-        }}
-        .prompt {{
-            font-size: 20px;
-            color: #283593;
-            margin: 20px 0;
-        }}
-        .meaning {{
-            font-size: 32px;
-            font-weight: bold;
-            margin: 20px 0;
-            color: #1565c0;
-        }}
-        .word-with-reading {{
-            margin: 30px 0;
-            line-height: 1;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            gap: 5px;
-        }}
-        ruby {{
-            ruby-position: over;
-        }}
-        rt {{
-            ruby-align: center;
-            margin-bottom: 15px;
-        }}
-        .word-with-reading .word {{
-            font-size: 80px;
-            color: #0d47a1;
-        }}
-        .word-with-reading .vocab-char {{
-            font-size: 80px;
-            color: #0d47a1;
-        }}
-        .pinyin-reading {{
-            font-size: 24px;
-            color: #1976d2;
-            font-weight: bold;
-        }}
-        .audio-placeholder {{
-            font-size: 16px;
-            color: #666;
-            margin: 10px 0;
-            opacity: 0.7;
-        }}
-        .section {{
-            background-color: rgba(255, 255, 255, 0.5);
-            padding: 15px;
-            margin: 15px 20px;
-            border-radius: 12px;
-            border-left: 4px solid #1565c0;
-            text-align: left;
-        }}
-        .section-title {{
-            font-weight: bold;
-            color: #1565c0;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }}
-        .content {{
-            font-size: 18px;
-            color: #283593;
-            line-height: 1.6;
-        }}
-        .info {{
-            font-size: 14px;
-            color: #666;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(0,0,0,0.1);
-        }}
-        .back {{
-            display: none;
-        }}
-    </style>
-</head>
-<body>
-    <button class="toggle-button" onclick="toggleCard()">Show Back</button>
-    <div class="card">
-        <div class="front">
-            <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Tian Level {vocab_data.get('tian_level', '?')}</div>
-            <div class="word">{vocab_data.get('word', '')}</div>
-        </div>
-        <div class="back">
-            <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Tian Level {vocab_data.get('tian_level', '?')}</div>
-            <div class="word-with-reading">
-                {create_ruby_text(vocab_data.get('word', ''), vocab_data.get('pinyin', ''))}
-            </div>
-            <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
-            <div class="meaning">{vocab_data.get('meaning', 'Unknown')}</div>
-            <div class="audio-placeholder">🔊 [Audio: {vocab_data.get('pinyin', '?')}]</div>
-            <div class="section">
-                <div class="section-title">Example</div>
-                <div class="content">Example sentence would go here.</div>
-            </div>
-            <div class="section">
-                <div class="section-title">Character Breakdown</div>
-                <div class="content">{' '.join(list(vocab_data.get('word', '')))}</div>
-            </div>
-            <div class="info">Blue theme • Context-based learning</div>
-        </div>
-    </div>
-    <script>
-        let showingFront = true;
-        function toggleCard() {{
-            const front = document.querySelector('.front');
-            const back = document.querySelector('.back');
-            const button = document.querySelector('.toggle-button');
-            
-            if (showingFront) {{
-                front.style.display = 'none';
-                back.style.display = 'block';
-                button.textContent = 'Show Front';
-            }} else {{
-                front.style.display = 'block';
-                back.style.display = 'none';
-                button.textContent = 'Show Back';
-            }}
-            showingFront = !showingFront;
-        }}
-    </script>
-</body>
-</html>"""
-
-# Generate sample HTML cards
-print("\n📝 Generating HTML card previews...")
-
-# Pick first sample from each
-if radicals_sample:
-    html = create_radical_card_html(radicals_sample[0])
-    with open('data/sample_radical_card.html', 'w', encoding='utf-8') as f:
-        f.write(html)
-    print(f"✓ Created data/sample_radical_card.html - {radicals_sample[0].get('radical', '')}")
-
-if hanzi_sample:
-    html = create_hanzi_card_html(hanzi_sample[0], radicals_df)
-    with open('data/sample_hanzi_card.html', 'w', encoding='utf-8') as f:
-        f.write(html)
-    char = hanzi_sample[0].get('hanzi', hanzi_sample[0].get('character', ''))
-    print(f"✓ Created data/sample_hanzi_card.html - {char}")
-
-if vocab_sample:
-    html = create_vocab_card_html(vocab_sample[0])
-    with open('data/sample_vocabulary_card.html', 'w', encoding='utf-8') as f:
-        f.write(html)
-    print(f"✓ Created data/sample_vocabulary_card.html - {vocab_sample[0].get('word', '')}")
-
-# Generate combined view with all three card types side by side using iframes
-print("\n📐 Creating combined side-by-side view...")
-combined_html = """<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tian Hanzi Deck - Card Type Comparison</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-        h1 {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-        .cards-container {
-            display: flex;
-            gap: 20px;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
-        .card-wrapper {
-            flex: 1;
-            min-width: 400px;
-            max-width: 550px;
-        }
-        .card-label {
-            text-align: center;
-            color: white;
-            font-size: 1.3em;
-            font-weight: bold;
-            margin-bottom: 15px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-            padding: 10px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
-        }
-        iframe {
-            width: 100%;
-            height: 700px;
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-            background: white;
-        }
-        @media (max-width: 1400px) {
-            .cards-container {
-                flex-direction: column;
-                align-items: center;
-            }
-            .card-wrapper {
-                max-width: 700px;
-                width: 100%;
-            }
-        }
-        .footer {
-            text-align: center;
-            color: white;
-            margin-top: 30px;
-            padding: 20px;
-            font-size: 1.1em;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🎴 Tian Hanzi Deck - Card Type Comparison</h1>
+    # Load and merge hanzi mnemonics from CSV
+    hanzi_mnemonic_path = data_dir / "hanzi_mnemonic.csv"
+    if hanzi_mnemonic_path.exists():
+        print("📝 Loading hanzi mnemonics from hanzi_mnemonic.csv...")
+        hanzi_mn_df = pd.read_csv(hanzi_mnemonic_path)
         
-        <div class="cards-container">
-            <div class="card-wrapper">
-                <div class="card-label">1. Radical Card (Brown)</div>
-                <iframe src="sample_radical_card.html"></iframe>
-            </div>
-            
-            <div class="card-wrapper">
-                <div class="card-label">2. Hanzi Card (Green)</div>
-                <iframe src="sample_hanzi_card.html"></iframe>
-            </div>
-            
-            <div class="card-wrapper">
-                <div class="card-label">3. Vocabulary Card (Blue)</div>
-                <iframe src="sample_vocabulary_card.html"></iframe>
-            </div>
-        </div>
+        # Get the columns we need
+        merge_cols = ['hanzi']
+        if 'meaning' in hanzi_mn_df.columns:
+            hanzi_mn_df = hanzi_mn_df.rename(columns={'meaning': 'mnemonic_meaning'})
+            merge_cols.append('mnemonic_meaning')
+        if 'meaning_mnemonic' in hanzi_mn_df.columns:
+            merge_cols.append('meaning_mnemonic')
+        if 'reading_mnemonic' in hanzi_mn_df.columns:
+            merge_cols.append('reading_mnemonic')
         
-        <div class="footer">
-            💡 Each card can be flipped independently by clicking its "Show Back" button
-        </div>
-    </div>
-</body>
-</html>"""
+        # Merge with hanzi data
+        hanzi_df = hanzi_df.merge(hanzi_mn_df[merge_cols], on='hanzi', how='left')
+        
+        # Use mnemonic meaning if available
+        if 'mnemonic_meaning' in hanzi_df.columns:
+            hanzi_df['meaning'] = hanzi_df['mnemonic_meaning'].fillna(hanzi_df['meaning'])
+            hanzi_df = hanzi_df.drop(columns=['mnemonic_meaning'])
+        
+        # Fill missing mnemonic columns
+        for col in ['meaning_mnemonic', 'reading_mnemonic']:
+            if col in hanzi_df.columns:
+                hanzi_df[col] = hanzi_df[col].fillna('')
+        
+        print(f"   ✓ Merged mnemonics for {len(hanzi_df)} hanzi\n")
+    else:
+        print("⚠️  hanzi_mnemonic.csv not found, skipping mnemonic merge\n")
 
-with open('data/sample_cards_combined.html', 'w', encoding='utf-8') as f:
-    f.write(combined_html)
-print("✓ Created data/sample_cards_combined.html - All three card types (using iframes)")
+    # Load and merge radical meanings from radicals_tian.csv
+    radicals_tian_path = data_dir / "radicals_tian.csv"
+    if radicals_tian_path.exists():
+        print("📝 Loading enhanced radical data from radicals_tian.csv...")
+        radicals_tian_df = pd.read_csv(radicals_tian_path)
+        
+        # Merge to get better meanings and HSK breakdown
+        merge_cols = ['radical', 'meaning', 'usage_hsk1', 'usage_hsk2', 'usage_hsk3']
+        radicals_merge = radicals_tian_df[merge_cols].copy()
+        
+        radicals_df = radicals_df.merge(
+            radicals_merge,
+            on='radical',
+            how='left',
+            suffixes=('_old', '_tian')
+        )
+        
+        # Use Tian meaning if available
+        radicals_df['meaning'] = radicals_df['meaning_tian'].fillna(radicals_df.get('meaning_old', radicals_df.get('meaning', '')))
+        
+        # Fill missing HSK counts
+        for col in ['usage_hsk1', 'usage_hsk2', 'usage_hsk3']:
+            if col not in radicals_df.columns:
+                radicals_df[col] = 0
+            else:
+                radicals_df[col] = radicals_df[col].fillna(0).astype(int)
+        
+        # Clean up temp columns
+        radicals_df = radicals_df.drop(columns=[c for c in radicals_df.columns if c.endswith('_old') or c.endswith('_tian')], errors='ignore')
+        
+        print(f"   ✓ Enhanced {len(radicals_df)} radicals with Tian data\n")
 
-print("\n" + "=" * 60)
-print("✨ All samples created successfully!")
-print("=" * 60)
-print("\nFiles created:")
-print("  📊 CSV Samples:")
-print("     • data/radicals_sample.csv")
-print("     • data/hanzi_sample.csv")
-print("     • data/vocabulary_sample.csv")
-print("\n  🎴 HTML Card Previews:")
-print("     • data/sample_radical_card.html")
-print("     • data/sample_hanzi_card.html")
-print("     • data/sample_vocabulary_card.html")
-print("     • data/sample_cards_combined.html (all 3 side-by-side)")
-print("\n💡 Open the HTML files in your browser to see card previews!")
-print("   ⭐ Try sample_cards_combined.html to see all card types at once!")
+    generator = SampleGenerator(output_dir=data_dir)
+    generator.generate(radicals_df, hanzi_df, vocabulary_df)
+
+
+if __name__ == "__main__":
+    main()
+

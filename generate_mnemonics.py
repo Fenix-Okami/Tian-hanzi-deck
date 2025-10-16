@@ -19,9 +19,9 @@ DEFAULT_HANZI_IN = "data/hanzi.csv"
 DEFAULT_VOCAB_IN = "data/vocabulary.csv"
 DEFAULT_RADICALS_OUT = "data/radicals_mnemonic.csv"
 DEFAULT_HANZI_OUT = "data/hanzi_mnemonic.csv"
-DEFAULT_VOCAB_OUT = "data/vocab_mnemonic.csv"
+DEFAULT_VOCAB_OUT = "data/vocabulary_mnemonic.csv"
 DEFAULT_BATCH_SIZE = 10
-DEFAULT_WORKERS = 2
+DEFAULT_WORKERS = 6
 DEFAULT_RATE_DELAY = 0.4
 DEFAULT_RESUME = False
 
@@ -80,6 +80,7 @@ def run_vocab(args: argparse.Namespace, client: Optional[OpenAI]) -> Optional[Op
         model=DEFAULT_MODEL,
         vocab=DEFAULT_VOCAB_IN,
         hanzi=DEFAULT_HANZI_IN,
+        hanzi_mnemonic=DEFAULT_HANZI_OUT,
         out=DEFAULT_VOCAB_OUT,
         batch_size=DEFAULT_BATCH_SIZE,
         workers=DEFAULT_WORKERS,

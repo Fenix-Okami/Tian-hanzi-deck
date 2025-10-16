@@ -20,8 +20,6 @@ setup(
     install_requires=[
         "genanki==0.13.1",
         "hanzipy",
-        "pandas>=2.0.0",
-        "pyarrow>=14.0.0",
         "openai>=1.0.0",
         "strokes",
     ],
