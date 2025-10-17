@@ -64,6 +64,11 @@ All tests should pass (21 tests covering utilities and data generation).
 - `run_mnemonic_generator.sh` - Quick start script
 - See [MNEMONIC_GENERATOR_GUIDE.md](MNEMONIC_GENERATOR_GUIDE.md) for details
 
+**Audio Generation (Optional):**
+- `generate_audio.py` - Generate MP3 audio files using OpenAI TTS
+- `run_audio_pipeline.sh` - Quick start script
+- See [AUDIO_GENERATION_GUIDE.md](AUDIO_GENERATION_GUIDE.md) for details
+
 **Analysis Tools** (in `scripts/analysis/`):
 - `analyze_hsk_components.py` - Component productivity analysis
 - `show_levels.py` - Display level distribution

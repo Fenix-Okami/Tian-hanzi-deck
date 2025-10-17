@@ -93,7 +93,7 @@ def generate_vocab_row(
         usage_mnemonic = "[Placeholder] usage description not generated"
     else:
         system, user = vocab_prompt(word, base_meaning, pinyin, breakdown, hsk_level)
-        content = chat_call(client, model, system, user, max_tokens=220, effort="low", debug=debug)
+        content = chat_call(client, model, system, user, max_tokens=2000, effort="low", debug=debug)
         if debug:
             print(f"\n[DEBUG] Raw response for vocab {word}: {content}")
         parsed_meaning, _, usage = parse_tagged_response(content)

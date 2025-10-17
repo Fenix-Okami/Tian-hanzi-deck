@@ -214,4 +214,6 @@ __marimo__/
 
 # Anki deck files (generated)
 *.apkg
-data
+
+# Generated data files
+data/

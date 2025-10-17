@@ -35,8 +35,64 @@ except ImportError as e:
     print("  pip install -r requirements.txt")
     sys.exit(1)
 
-# Import shared utility functions
-from tian_hanzi.core.cards import create_ruby_text, format_components_with_meanings
+# Card utility functions (avoiding broken package imports)
+def create_ruby_text(word: str, pinyin: str) -> str:
+    """Create HTML ruby markup for the supplied word and pinyin pair."""
+    if not word or not pinyin:
+        return word
+
+    syllables = pinyin.strip().split()
+    chars = list(word)
+    if len(syllables) == len(chars):
+        ruby_parts = [
+            (
+                f'<ruby><rb class="vocab-char">{char}</rb>'
+                f'<rt class="pinyin-reading">{syllable}</rt></ruby>'
+            )
+            for char, syllable in zip(chars, syllables)
+        ]
+        return "".join(ruby_parts)
+
+    return (
+        f'<ruby><rb class="vocab-word">{word}</rb>'
+        f'<rt class="pinyin-reading">{pinyin}</rt></ruby>'
+    )
+
+
+def format_components_with_meanings(components, radicals_df):
+    """Format component strings along with their meanings from radicals_df."""
+    # Handle NaN and empty values
+    if pd.isna(components) or not components:
+        return "No components"
+    
+    if isinstance(components, str):
+        if "|" in components:
+            split = [item.strip() for item in components.split("|") if item.strip()]
+        else:
+            split = [item.strip() for item in components.split(",") if item.strip()]
+    else:
+        # If it's iterable (list, etc.)
+        try:
+            split = [item for item in components if item]
+        except TypeError:
+            # If not iterable, convert to string
+            split = [str(components)]
+    
+    if not split:
+        return "No components"
+
+    formatted = []
+    for component in split:
+        match = radicals_df[radicals_df["radical"] == component]
+        if match.empty:
+            formatted.append(component)
+            continue
+        meaning = match.iloc[0].get("meaning", "")
+        if meaning and len(meaning) > 30:
+            meaning = meaning[:27] + "..."
+        formatted.append(f"{component} ({meaning})" if meaning else component)
+
+    return ", ".join(formatted) if formatted else "No components"
 
 
 def run_breakpoint_analysis():
@@ -378,24 +434,57 @@ hanzi_df['meaning'] = hanzi_df['meaning'].fillna('')
 
 vocabulary_mn_df = load_mnemonic_table('data/vocabulary_mnemonic.csv', 'word')
 if not vocabulary_mn_df.empty:
+    print(f"🔄 Merging vocabulary mnemonics from vocabulary_mnemonic.csv...")
+    print(f"   Loaded {len(vocabulary_mn_df)} vocabulary entries with columns: {list(vocabulary_mn_df.columns)}")
+    
     vocabulary_merge = vocabulary_mn_df.copy()
+    
+    # Handle both old column names (openai_*) and new column names (direct)
     backward_map = {
-        'openai_meaning_mnemonic': 'meaning',
-        'openai_usage_mnemonic': 'description',
+        'openai_meaning_mnemonic': 'meaning_mnemonic',
+        'openai_usage_mnemonic': 'description_mnemonic',
     }
     vocabulary_merge = vocabulary_merge.rename(
         columns={old: new for old, new in backward_map.items() if old in vocabulary_merge.columns}
     )
 
     merge_cols = ['word']
+    
+    # If CSV has 'meaning' column, use it (rename to avoid collision)
     if 'meaning' in vocabulary_merge.columns:
         vocabulary_merge = vocabulary_merge.rename(columns={'meaning': 'meaning_simple'})
         merge_cols.append('meaning_simple')
+    elif 'meaning_mnemonic' in vocabulary_merge.columns:
+        vocabulary_merge = vocabulary_merge.rename(columns={'meaning_mnemonic': 'meaning_simple'})
+        merge_cols.append('meaning_simple')
+    
+    # If CSV has 'description' column, use it directly
     if 'description' in vocabulary_merge.columns:
         merge_cols.append('description')
+        print(f"   ✓ Found 'description' column")
+    elif 'description_mnemonic' in vocabulary_merge.columns:
+        vocabulary_merge = vocabulary_merge.rename(columns={'description_mnemonic': 'description'})
+        merge_cols.append('description')
+        print(f"   ✓ Found 'description_mnemonic' column (renamed to 'description')")
+    
+    # If CSV has 'hanzi_breakdown' column, use it
+    if 'hanzi_breakdown' in vocabulary_merge.columns:
+        merge_cols.append('hanzi_breakdown')
+        print(f"   ✓ Found 'hanzi_breakdown' column")
 
+    print(f"   Merging columns: {merge_cols}")
+    
     if len(merge_cols) > 1:
         vocab_df = vocab_df.merge(vocabulary_merge[merge_cols], on='word', how='left')
+        print(f"   ✓ Merged vocabulary data")
+        
+        # Debug: Check first few rows
+        sample_word = vocab_df.iloc[0]['word']
+        sample_desc = vocab_df.iloc[0].get('description', 'NOT FOUND')
+        sample_breakdown = vocab_df.iloc[0].get('hanzi_breakdown', 'NOT FOUND')
+        print(f"   Debug sample (first word '{sample_word}'):")
+        print(f"      description: {sample_desc[:50] if sample_desc != 'NOT FOUND' else 'NOT FOUND'}...")
+        print(f"      hanzi_breakdown: {sample_breakdown}")
 
 if 'meaning_simple' in vocab_df.columns:
     vocab_df['meaning'] = vocab_df['meaning_simple'].fillna(vocab_df['meaning'])
@@ -594,6 +683,7 @@ hanzi_model = genanki.Model(
         {'name': 'ReadingMnemonic'},
         {'name': 'HSKLevel'},
         {'name': 'Level'},
+        {'name': 'Audio'},
     ],
     templates=[
         {
@@ -612,7 +702,7 @@ hanzi_model = genanki.Model(
                 </div>
                 <hr id="answer">
                 <div class="meaning hanzi-meaning">{{Meaning}}</div>
-                <div class="audio-placeholder">🔊 [Audio: {{Reading}}]</div>
+                <div class="audio-section">{{Audio}}</div>
                 <div class="section">
                     <div class="section-title">Meaning Mnemonic</div>
                     <div class="mnemonic">{{MeaningMnemonic}}</div>
@@ -681,11 +771,9 @@ hanzi_model = genanki.Model(
             color: #558b2f;
             font-weight: bold;
         }
-        .audio-placeholder {
-            font-size: 16px;
-            color: #666;
+        .audio-section {
             margin: 10px 0;
-            opacity: 0.7;
+            text-align: center;
         }
         .section {
             background-color: rgba(255, 255, 255, 0.5);
@@ -721,10 +809,11 @@ vocab_model = genanki.Model(
         {'name': 'Meaning'},
         {'name': 'Reading'},
         {'name': 'RubyText'},
-        {'name': 'Characters'},
-        {'name': 'Example'},
+        {'name': 'HanziBreakdown'},
+        {'name': 'Description'},
         {'name': 'HSKLevel'},
         {'name': 'Level'},
+        {'name': 'Audio'},
     ],
     templates=[
         {
@@ -740,14 +829,14 @@ vocab_model = genanki.Model(
                 </div>
                 <hr id="answer">
                 <div class="meaning vocab-meaning">{{Meaning}}</div>
-                <div class="audio-placeholder">🔊 [Audio: {{Reading}}]</div>
+                <div class="audio-section">{{Audio}}</div>
                 <div class="section">
-                    <div class="section-title">Example</div>
-                    <div class="example">{{Example}}</div>
+                    <div class="section-title">Description</div>
+                    <div class="description">{{Description}}</div>
                 </div>
                 <div class="section">
-                    <div class="section-title">Character Breakdown</div>
-                    <div class="characters">{{Characters}}</div>
+                    <div class="section-title">Hanzi Breakdown</div>
+                    <div class="characters">{{HanziBreakdown}}</div>
                 </div>
             ''',
         },
@@ -813,11 +902,33 @@ vocab_model = genanki.Model(
             color: #1976d2;
             font-weight: bold;
         }
-        .audio-placeholder {
+        .audio-controls {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            justify-content: center;
+        }
+        .audio-controls button {
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
             font-size: 16px;
-            color: #666;
-            margin: 10px 0;
-            opacity: 0.7;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .audio-controls button:hover {
+            background-color: #0d47a1;
+        }
+        .audio-controls label {
+            font-size: 14px;
+            color: #555;
+            cursor: pointer;
+        }
+        .audio-controls input[type="checkbox"] {
+            cursor: pointer;
         }
         .section {
             background-color: rgba(255, 255, 255, 0.5);
@@ -838,10 +949,11 @@ vocab_model = genanki.Model(
             color: #283593;
             line-height: 1.6;
         }
-        .example {
-            font-size: 18px;
+        .description {
+            font-size: 16px;
             color: #283593;
-            line-height: 1.6;
+            line-height: 1.8;
+            text-align: left;
         }
     '''
 )
@@ -849,39 +961,39 @@ vocab_model = genanki.Model(
 # Create parent deck and seven subdecks
 radical_deck = genanki.Deck(
     RADICAL_DECK_ID,
-    'HSK 1-3 Hanzi Deck::1. Radicals'
+    '天 T.I.A.N. Simplified Mandarin::1. Radicals'
 )
 
 # Hanzi subdecks by HSK level
 hanzi_hsk1_deck = genanki.Deck(
     HANZI_HSK1_DECK_ID,
-    'HSK 1-3 Hanzi Deck::2. Hanzi::HSK 1'
+    '天 T.I.A.N. Simplified Mandarin::2. Hanzi::HSK 1'
 )
 
 hanzi_hsk2_deck = genanki.Deck(
     HANZI_HSK2_DECK_ID,
-    'HSK 1-3 Hanzi Deck::2. Hanzi::HSK 2'
+    '天 T.I.A.N. Simplified Mandarin::2. Hanzi::HSK 2'
 )
 
 hanzi_hsk3_deck = genanki.Deck(
     HANZI_HSK3_DECK_ID,
-    'HSK 1-3 Hanzi Deck::2. Hanzi::HSK 3'
+    '天 T.I.A.N. Simplified Mandarin::2. Hanzi::HSK 3'
 )
 
 # Vocabulary subdecks by HSK level
 vocab_hsk1_deck = genanki.Deck(
     VOCAB_HSK1_DECK_ID,
-    'HSK 1-3 Hanzi Deck::3. Vocabulary::HSK 1'
+    '天 T.I.A.N. Simplified Mandarin::3. Vocabulary::HSK 1'
 )
 
 vocab_hsk2_deck = genanki.Deck(
     VOCAB_HSK2_DECK_ID,
-    'HSK 1-3 Hanzi Deck::3. Vocabulary::HSK 2'
+    '天 T.I.A.N. Simplified Mandarin::3. Vocabulary::HSK 2'
 )
 
 vocab_hsk3_deck = genanki.Deck(
     VOCAB_HSK3_DECK_ID,
-    'HSK 1-3 Hanzi Deck::3. Vocabulary::HSK 3'
+    '天 T.I.A.N. Simplified Mandarin::3. Vocabulary::HSK 3'
 )
 
 print("🎴 Creating Anki cards...")
@@ -964,6 +1076,10 @@ for idx, row in hanzi_df.iterrows():
         target_deck = hanzi_hsk1_deck  # Default to HSK1
         hanzi_counts['unknown'] += 1
     
+    # Generate audio field with [sound:] tag for Anki's built-in playback
+    audio_filename = f"{char}.mp3"
+    audio_field = f"[sound:{audio_filename}]"
+    
     note = genanki.Note(
         model=hanzi_model,
         fields=[
@@ -975,6 +1091,7 @@ for idx, row in hanzi_df.iterrows():
             str(row.get('reading_mnemonic', '') or ''),
             hsk_level_str,
             str(int(row['tian_level'])),
+            audio_field,
         ],
         tags=['hanzi', hsk_tag, f'tian-{int(row["tian_level"])}']
     )
@@ -994,8 +1111,15 @@ for idx, row in vocab_df.iterrows():
     pinyin = str(row['pinyin'])
     ruby_text = create_ruby_text(word, pinyin)
     
-    # Create character breakdown without "+" (just space-separated)
-    character_breakdown = ' '.join(list(word))
+    # Get hanzi_breakdown from CSV, fallback to space-separated characters
+    hanzi_breakdown = str(row.get('hanzi_breakdown', ''))
+    if not hanzi_breakdown or hanzi_breakdown == 'nan':
+        hanzi_breakdown = ' '.join(list(word))
+    
+    # Get description from CSV
+    description = str(row.get('description', ''))
+    if description == 'nan':
+        description = ''
     
     hsk_level = int(row['hsk_level'])
     
@@ -1013,6 +1137,10 @@ for idx, row in vocab_df.iterrows():
         target_deck = vocab_hsk1_deck  # Default to HSK1
         vocab_counts['hsk1'] += 1
     
+    # Generate audio field with [sound:] tag for Anki's built-in playback
+    audio_filename = f"{word}.mp3"
+    audio_field = f"[sound:{audio_filename}]"
+    
     note = genanki.Note(
         model=vocab_model,
         fields=[
@@ -1020,10 +1148,11 @@ for idx, row in vocab_df.iterrows():
             str(row['meaning']),
             pinyin,
             ruby_text,
-            character_breakdown,
-            str(row.get('example', '')),
+            hanzi_breakdown,
+            description,
             str(hsk_level),
             str(int(row['tian_level'])),
+            audio_field,
         ],
         tags=['vocabulary', f'hsk{hsk_level}', f'tian-{int(row["tian_level"])}']
     )
@@ -1037,6 +1166,28 @@ print(f"      • HSK 3: {vocab_counts['hsk3']} cards")
 # Create output directory if it doesn't exist
 os.makedirs('anki_deck', exist_ok=True)
 
+# Collect audio files for media
+print("\n🔊 Collecting audio files...")
+media_files = []
+
+# Collect hanzi audio files
+hanzi_audio_dir = 'data/audio/hanzi'
+if os.path.exists(hanzi_audio_dir):
+    for char in hanzi_df.get('hanzi', hanzi_df.get('character', [])):
+        audio_path = os.path.join(hanzi_audio_dir, f"{char}.mp3")
+        if os.path.exists(audio_path):
+            media_files.append(audio_path)
+
+# Collect vocabulary audio files  
+vocab_audio_dir = 'data/audio/vocabulary'
+if os.path.exists(vocab_audio_dir):
+    for word in vocab_df['word']:
+        audio_path = os.path.join(vocab_audio_dir, f"{word}.mp3")
+        if os.path.exists(audio_path):
+            media_files.append(audio_path)
+
+print(f"   ✓ Found {len(media_files)} audio files")
+
 # Save the deck package with all three subdecks
 output_file = 'anki_deck/HSK_1-3_Hanzi_Deck.apkg'
 print(f"\n💾 Saving Anki deck to {output_file}...")
@@ -1048,19 +1199,19 @@ try:
         hanzi_hsk1_deck, hanzi_hsk2_deck, hanzi_hsk3_deck,
         vocab_hsk1_deck, vocab_hsk2_deck, vocab_hsk3_deck
     ]
-    genanki.Package(all_decks).write_to_file(output_file)
+    genanki.Package(all_decks, media_files=media_files).write_to_file(output_file)
     print("   ✓ Deck saved successfully!")
     
     total_cards = len(radicals_df) + len(hanzi_df) + len(vocab_df)
     print(f"\n{'='*60}")
     print(f"✅ SUCCESS! Created Anki deck with {total_cards} cards:")
-    print(f"   📦 HSK 1-3 Hanzi Deck (parent)")
+    print("   📦 天 T.I.A.N. Simplified Mandarin (parent)")
     print(f"      ├── 1. Radicals: {len(radicals_df)} cards")
-    print(f"      ├── 2. Hanzi:")
+    print("      ├── 2. Hanzi:")
     print(f"      │   ├── HSK 1: {hanzi_counts['hsk1']} cards")
     print(f"      │   ├── HSK 2: {hanzi_counts['hsk2']} cards")
     print(f"      │   └── HSK 3: {hanzi_counts['hsk3']} cards")
-    print(f"      └── 3. Vocabulary:")
+    print("      └── 3. Vocabulary:")
     print(f"          ├── HSK 1: {vocab_counts['hsk1']} cards")
     print(f"          ├── HSK 2: {vocab_counts['hsk2']} cards")
     print(f"          └── HSK 3: {vocab_counts['hsk3']} cards")
