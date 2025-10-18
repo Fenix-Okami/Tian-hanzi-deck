@@ -695,14 +695,13 @@ hanzi_model = genanki.Model(
             'afmt': '''
                 <div class="card-type hanzi-type">Hanzi • HSK {{HSKLevel}} • Level {{Level}}</div>
                 <div class="character-with-reading">
-                    <ruby>
-                        <rb class="hanzi-char">{{Character}}</rb>
-                        <rt class="pinyin-reading">{{Reading}}</rt>
-                    </ruby>
+                    <div class="reading-row">
+                        <span class="pinyin-reading">{{Reading}}</span>
+                        <span class="audio-inline">{{Audio}}</span>
+                    </div>
+                    <div class="hanzi-char">{{Character}}</div>
                 </div>
-                <hr id="answer">
                 <div class="meaning hanzi-meaning">{{Meaning}}</div>
-                <div class="audio-section">{{Audio}}</div>
                 <div class="section">
                     <div class="section-title">Meaning Mnemonic</div>
                     <div class="mnemonic">{{MeaningMnemonic}}</div>
@@ -754,13 +753,15 @@ hanzi_model = genanki.Model(
         .character-with-reading {
             margin: 30px 0;
             line-height: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
         }
-        ruby {
-            ruby-position: over;
-        }
-        rt {
-            ruby-align: center;
-            margin-bottom: 15px;
+        .reading-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
         }
         .character-with-reading .hanzi-char {
             font-size: 120px;
@@ -771,9 +772,9 @@ hanzi_model = genanki.Model(
             color: #558b2f;
             font-weight: bold;
         }
-        .audio-section {
-            margin: 10px 0;
-            text-align: center;
+        .audio-inline {
+            display: inline-flex;
+            align-items: center;
         }
         .section {
             background-color: rgba(255, 255, 255, 0.5);
@@ -795,7 +796,7 @@ hanzi_model = genanki.Model(
         .mnemonic {
             font-size: 16px;
             color: #4a6741;
-            text-align: left;
+            text-align: center;
         }
     '''
 )
