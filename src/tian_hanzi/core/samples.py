@@ -2,14 +2,80 @@
 from __future__ import annotations
 
 import random
+import re
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 from .cards import create_ruby_text, format_components_with_meanings
+from .deck_templates import (
+    HANZI_MODEL_DEF,
+    ModelDefinition,
+    RADICAL_MODEL_DEF,
+    VOCAB_MODEL_DEF,
+)
 
 __all__ = ["SampleGenerator"]
+
+
+FIELD_PATTERN = re.compile(r"{{\s*([^{}]+?)\s*}}")
+
+PREVIEW_BASE_CSS = """
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    padding: 20px;
+}
+.preview-card {
+    max-width: 520px;
+    margin: 0 auto;
+}
+.card-face {
+    display: none;
+}
+.card-face.active {
+    display: block;
+}
+.toggle-button {
+    display: block;
+    margin: 0 auto 20px;
+    padding: 12px 24px;
+    background-color: #444444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.toggle-button:hover {
+    background-color: #222222;
+}
+.toggle-button.radical-button {
+    background-color: #8b4513;
+}
+.toggle-button.radical-button:hover {
+    background-color: #654321;
+}
+.toggle-button.hanzi-button {
+    background-color: #2e7d32;
+}
+.toggle-button.hanzi-button:hover {
+    background-color: #1b5e20;
+}
+.toggle-button.vocab-button {
+    background-color: #1565c0;
+}
+.toggle-button.vocab-button:hover {
+    background-color: #0d47a1;
+}
+.card {
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+"""
 
 
 class SampleGenerator:
@@ -115,26 +181,171 @@ class SampleGenerator:
         
         # Generate individual card previews
         if radicals_sample:
-            html = self._create_radical_card_html(radicals_sample[0])
+            radical_data = radicals_sample[0]
+            html = self._render_card_preview(
+                model_def=RADICAL_MODEL_DEF,
+                fields=self._build_radical_fields(radical_data),
+                page_title=f"Radical Card Preview - {radical_data.get('radical', '')}",
+                button_class="radical-button",
+            )
             (self.output_dir / 'sample_radical_card.html').write_text(html, encoding='utf-8')
-            print(f"  ✓ sample_radical_card.html - {radicals_sample[0].get('radical', '')}")
+            print(f"  ✓ sample_radical_card.html - {radical_data.get('radical', '')}")
         
         if hanzi_sample:
-            html = self._create_hanzi_card_html(hanzi_sample[0], radicals_df)
+            hanzi_data = hanzi_sample[0]
+            char = hanzi_data.get('hanzi', hanzi_data.get('character', ''))
+            html = self._render_card_preview(
+                model_def=HANZI_MODEL_DEF,
+                fields=self._build_hanzi_fields(hanzi_data, radicals_df),
+                page_title=f"Hanzi Card Preview - {char}",
+                button_class="hanzi-button",
+            )
             (self.output_dir / 'sample_hanzi_card.html').write_text(html, encoding='utf-8')
-            char = hanzi_sample[0].get('hanzi', hanzi_sample[0].get('character', ''))
             print(f"  ✓ sample_hanzi_card.html - {char}")
         
         if vocab_sample:
-            html = self._create_vocab_card_html(vocab_sample[0])
+            vocab_data = vocab_sample[0]
+            html = self._render_card_preview(
+                model_def=VOCAB_MODEL_DEF,
+                fields=self._build_vocab_fields(vocab_data),
+                page_title=f"Vocabulary Card Preview - {vocab_data.get('word', '')}",
+                button_class="vocab-button",
+            )
             (self.output_dir / 'sample_vocabulary_card.html').write_text(html, encoding='utf-8')
-            print(f"  ✓ sample_vocabulary_card.html - {vocab_sample[0].get('word', '')}")
+            print(f"  ✓ sample_vocabulary_card.html - {vocab_data.get('word', '')}")
         
         # Generate combined view
         html = self._create_combined_view_html()
         (self.output_dir / 'sample_cards_combined.html').write_text(html, encoding='utf-8')
         print("  ✓ sample_cards_combined.html (all 3 side-by-side)")
-    
+        
+    def _render_card_preview(
+        self,
+        *,
+        model_def: ModelDefinition,
+        fields: dict[str, str],
+        page_title: str,
+        button_class: str,
+    ) -> str:
+        """Render a preview HTML page for a single card using shared templates."""
+
+        sanitized_fields = {key: self._clean_text(value) for key, value in fields.items()}
+        template = model_def.templates[0]
+        front_inner = self._render_template(template.qfmt, sanitized_fields)
+        back_inner = self._render_template(template.afmt, sanitized_fields, front_inner)
+
+        combined_css = PREVIEW_BASE_CSS + "\n" + model_def.css
+
+        front_html = f'<div class="card">{front_inner}</div>'
+        back_html = f'<div class="card">{back_inner}</div>'
+
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{page_title}</title>
+    <style>
+{combined_css}
+    </style>
+</head>
+<body>
+    <button class="toggle-button {button_class}" onclick="toggleCard()">Show Back</button>
+    <div class="preview-card">
+        <div class="card-face front-face active">{front_html}</div>
+        <div class="card-face back-face">{back_html}</div>
+    </div>
+    <script>
+        function toggleCard() {{
+            const front = document.querySelector('.front-face');
+            const back = document.querySelector('.back-face');
+            const button = document.querySelector('.toggle-button');
+            const frontIsActive = front.classList.contains('active');
+
+            if (frontIsActive) {{
+                front.classList.remove('active');
+                back.classList.add('active');
+                button.textContent = 'Show Front';
+            }} else {{
+                back.classList.remove('active');
+                front.classList.add('active');
+                button.textContent = 'Show Back';
+            }}
+        }}
+    </script>
+</body>
+</html>"""
+
+    @staticmethod
+    def _render_template(template: str, fields: dict[str, str], front_side: str | None = None) -> str:
+        """Render an Anki template string using simple field substitution."""
+
+        def replace(match: re.Match[str]) -> str:
+            key = match.group(1).strip()
+            if key == 'FrontSide':
+                return front_side or ''
+            return fields.get(key, '')
+
+        return FIELD_PATTERN.sub(replace, template)
+
+    def _build_radical_fields(self, radical_data: dict[str, Any]) -> dict[str, str]:
+        """Prepare field values for the radical model."""
+
+        return {
+            'Radical': self._clean_text(radical_data.get('radical'), ''),
+            'Meaning': self._clean_text(radical_data.get('meaning'), 'Unknown'),
+            'Productivity': self._clean_text(radical_data.get('usage_count'), '0'),
+            'HSK1Count': self._clean_text(radical_data.get('usage_hsk1'), '0'),
+            'HSK2Count': self._clean_text(radical_data.get('usage_hsk2'), '0'),
+            'HSK3Count': self._clean_text(radical_data.get('usage_hsk3'), '0'),
+            'Level': self._level_value(radical_data),
+        }
+
+    def _build_hanzi_fields(
+        self,
+        hanzi_data: dict[str, Any],
+        radicals_df: pd.DataFrame,
+    ) -> dict[str, str]:
+        """Prepare field values for the hanzi model."""
+
+        char = self._clean_text(hanzi_data.get('hanzi', hanzi_data.get('character')), '')
+        components_raw = hanzi_data.get('components', hanzi_data.get('radicals', ''))
+        components = format_components_with_meanings(components_raw, radicals_df)
+
+        return {
+            'Character': char,
+            'Meaning': self._clean_text(hanzi_data.get('meaning'), 'Unknown'),
+            'Reading': self._clean_text(hanzi_data.get('pinyin'), ''),
+            'Radicals': components,
+            'MeaningMnemonic': self._clean_text(hanzi_data.get('meaning_mnemonic'), ''),
+            'ReadingMnemonic': self._clean_text(hanzi_data.get('reading_mnemonic'), ''),
+            'HSKLevel': self._clean_text(hanzi_data.get('hsk_level'), ''),
+            'Level': self._level_value(hanzi_data),
+            'Audio': self._audio_placeholder(char),
+        }
+
+    def _build_vocab_fields(self, vocab_data: dict[str, Any]) -> dict[str, str]:
+        """Prepare field values for the vocabulary model."""
+
+        word = self._clean_text(vocab_data.get('word'), '')
+        pinyin = self._clean_text(vocab_data.get('pinyin'), '')
+        ruby_text = create_ruby_text(word, pinyin)
+        breakdown = self._clean_text(vocab_data.get('hanzi_breakdown'), '')
+        if not breakdown and word:
+            breakdown = ' '.join(list(word))
+
+        return {
+            'Word': word,
+            'Meaning': self._clean_text(vocab_data.get('meaning'), 'Unknown'),
+            'Reading': pinyin,
+            'RubyText': ruby_text,
+            'HanziBreakdown': breakdown or 'No breakdown available.',
+            'Description': self._clean_text(vocab_data.get('description'), ''),
+            'HSKLevel': self._clean_text(vocab_data.get('hsk_level'), ''),
+            'Level': self._level_value(vocab_data),
+            'Audio': self._audio_placeholder(word),
+        }
+
     def _print_file_list(self) -> None:
         """Print list of generated files."""
         print("\nGenerated files:")
@@ -148,7 +359,7 @@ class SampleGenerator:
         print(f"     • {self.output_dir / 'sample_vocabulary_card.html'}")
         print(f"     • {self.output_dir / 'sample_cards_combined.html'}")
         print("\n💡 Open the HTML files in your browser to see card previews!")
-    
+
     @staticmethod
     def _clean_text(value: Any, fallback: str = "") -> str:
         """Normalize values (handling NaN/None) for display."""
@@ -163,583 +374,19 @@ class SampleGenerator:
         return text if text else fallback
 
     @staticmethod
-    def _create_radical_card_html(radical_data: dict[str, Any]) -> str:
-        """Generate HTML for a radical card preview."""
-        meaning = SampleGenerator._clean_text(radical_data.get('meaning'), "Unknown")
-        usage_count = int(SampleGenerator._clean_text(radical_data.get('usage_count'), "0"))
-        
-        # Get HSK counts
-        hsk1 = int(SampleGenerator._clean_text(radical_data.get('usage_hsk1'), "0"))
-        hsk2 = int(SampleGenerator._clean_text(radical_data.get('usage_hsk2'), "0"))
-        hsk3 = int(SampleGenerator._clean_text(radical_data.get('usage_hsk3'), "0"))
-        
-        # Calculate percentages for bar widths
-        total = usage_count if usage_count > 0 else (hsk1 + hsk2 + hsk3)
-        hsk1_pct = (hsk1 / total * 100) if total > 0 else 0
-        hsk2_pct = (hsk2 / total * 100) if total > 0 else 0
-        hsk3_pct = (hsk3 / total * 100) if total > 0 else 0
+    def _level_value(row: dict[str, Any]) -> str:
+        """Extract Tian level or fall back to a default placeholder."""
+        for key in ('tian_level', 'level'):
+            value = row.get(key)
+            text = SampleGenerator._clean_text(value, '')
+            if text:
+                return text
+        return '?'
 
-        return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radical Card Preview - {radical_data.get('radical', '')}</title>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            padding: 20px;
-        }}
-        .toggle-button {{
-            display: block;
-            margin: 0 auto 20px;
-            padding: 12px 24px;
-            background-color: #8b4513;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }}
-        .toggle-button:hover {{
-            background-color: #654321;
-        }}
-        .card {{
-            font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
-            text-align: center;
-            color: #4a3728;
-            background: linear-gradient(135deg, #f5e6d3 0%, #e8d5c4 100%);
-            padding: 20px;
-            max-width: 500px;
-            margin: 0 auto;
-            border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }}
-        .card-type {{
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #8b4513;
-        }}
-        .character {{
-            font-size: 120px;
-            margin: 30px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-            color: #654321;
-        }}
-        .meaning {{
-            font-size: 32px;
-            font-weight: bold;
-            margin: 20px 0;
-            color: #8b4513;
-        }}
-        .productivity {{
-            font-size: 16px;
-            color: #8b6914;
-            background-color: rgba(139, 69, 19, 0.1);
-            padding: 8px 16px;
-            border-radius: 20px;
-            display: inline-block;
-            margin: 10px 0;
-        }}
-        .hsk-breakdown {{
-            margin: 25px auto;
-            max-width: 400px;
-            background-color: rgba(255, 255, 255, 0.6);
-            padding: 20px;
-            border-radius: 12px;
-            border-left: 4px solid #8b4513;
-        }}
-        .breakdown-title {{
-            font-size: 18px;
-            font-weight: bold;
-            color: #654321;
-            margin-bottom: 15px;
-            text-align: center;
-        }}
-        .breakdown-bars {{
-            text-align: left;
-        }}
-        .breakdown-row {{
-            margin: 10px 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }}
-        .breakdown-label {{
-            font-size: 14px;
-            font-weight: bold;
-            color: #5a4a3a;
-            min-width: 50px;
-        }}
-        .breakdown-bar-container {{
-            flex: 1;
-            background-color: rgba(139, 69, 19, 0.1);
-            border-radius: 10px;
-            overflow: hidden;
-            height: 30px;
-            position: relative;
-        }}
-        .breakdown-bar {{
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            transition: width 0.3s ease;
-            min-width: 30px;
-        }}
-        .breakdown-bar.hsk1 {{
-            background: linear-gradient(90deg, #ff6b6b 0%, #ff8787 100%);
-        }}
-        .breakdown-bar.hsk2 {{
-            background: linear-gradient(90deg, #4dabf7 0%, #74c0fc 100%);
-        }}
-        .breakdown-bar.hsk3 {{
-            background: linear-gradient(90deg, #51cf66 0%, #8ce99a 100%);
-        }}
-        .breakdown-count {{
-            font-size: 13px;
-            font-weight: bold;
-            color: white;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        }}
-        .info {{
-            font-size: 14px;
-            color: #666;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(0,0,0,0.1);
-        }}
-        .back {{
-            display: none;
-        }}
-    </style>
-</head>
-<body>
-    <button class="toggle-button" onclick="toggleCard()">Show Back</button>
-    <div class="card">
-        <div class="front">
-            <div class="card-type">Radical • Tian Level {radical_data.get('tian_level', '?')}</div>
-            <div class="character">{radical_data.get('radical', '')}</div>
-        </div>
-        <div class="back">
-            <div class="card-type">Radical • Tian Level {radical_data.get('tian_level', '?')}</div>
-            <div class="character">{radical_data.get('radical', '')}</div>
-            <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
-            <div class="meaning">{meaning}</div>
-            <div class="hsk-breakdown">
-                <div class="breakdown-title">HSK Distribution</div>
-                <div class="breakdown-bars">
-                    <div class="breakdown-row">
-                        <div class="breakdown-label">HSK 1</div>
-                        <div class="breakdown-bar-container">
-                            <div class="breakdown-bar hsk1" style="width: {hsk1_pct}%;">
-                                <span class="breakdown-count">{hsk1}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="breakdown-row">
-                        <div class="breakdown-label">HSK 2</div>
-                        <div class="breakdown-bar-container">
-                            <div class="breakdown-bar hsk2" style="width: {hsk2_pct}%;">
-                                <span class="breakdown-count">{hsk2}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="breakdown-row">
-                        <div class="breakdown-label">HSK 3</div>
-                        <div class="breakdown-bar-container">
-                            <div class="breakdown-bar hsk3" style="width: {hsk3_pct}%;">
-                                <span class="breakdown-count">{hsk3}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="info">Brown theme • Productivity-based sorting</div>
-        </div>
-    </div>
-    <script>
-        let showingFront = true;
-        function toggleCard() {{
-            const front = document.querySelector('.front');
-            const back = document.querySelector('.back');
-            const button = document.querySelector('.toggle-button');
-            
-            if (showingFront) {{
-                front.style.display = 'none';
-                back.style.display = 'block';
-                button.textContent = 'Show Front';
-            }} else {{
-                front.style.display = 'block';
-                back.style.display = 'none';
-                button.textContent = 'Show Back';
-            }}
-            showingFront = !showingFront;
-        }}
-    </script>
-</body>
-</html>"""
-    
     @staticmethod
-    def _create_hanzi_card_html(hanzi_data: dict[str, Any], radicals_df: pd.DataFrame) -> str:
-        """Generate HTML for a hanzi card preview."""
-        char = hanzi_data.get('hanzi', hanzi_data.get('character', ''))
-        components_raw = hanzi_data.get('components', hanzi_data.get('radicals', 'Unknown'))
-        components = format_components_with_meanings(components_raw, radicals_df)
-        meaning_text = SampleGenerator._clean_text(hanzi_data.get('meaning'), "Unknown")
-        meaning_mnemonic = SampleGenerator._clean_text(
-            hanzi_data.get('meaning_mnemonic'), "No meaning mnemonic has been added yet."
-        )
-        reading_mnemonic = SampleGenerator._clean_text(
-            hanzi_data.get('reading_mnemonic'), "No reading mnemonic has been added yet."
-        )
-        
-        return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hanzi Card Preview - {char}</title>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            padding: 20px;
-        }}
-        .toggle-button {{
-            display: block;
-            margin: 0 auto 20px;
-            padding: 12px 24px;
-            background-color: #2e7d32;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }}
-        .toggle-button:hover {{
-            background-color: #1b5e20;
-        }}
-        .card {{
-            font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
-            text-align: center;
-            color: #2d4a2b;
-            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-            padding: 20px;
-            max-width: 500px;
-            margin: 0 auto;
-            border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }}
-        .card-type {{
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #2e7d32;
-        }}
-        .character {{
-            font-size: 120px;
-            margin: 30px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-            color: #1b5e20;
-        }}
-        .meaning {{
-            font-size: 32px;
-            font-weight: bold;
-            margin: 20px 0;
-            color: #2e7d32;
-        }}
-        .character-with-reading {{
-            margin: 30px 0;
-            line-height: 1;
-        }}
-        ruby {{
-            ruby-position: over;
-        }}
-        rt {{
-            ruby-align: center;
-            margin-bottom: 15px;
-        }}
-        .character-with-reading .character {{
-            font-size: 120px;
-            color: #1b5e20;
-        }}
-        .pinyin-reading {{
-            font-size: 28px;
-            color: #558b2f;
-            font-weight: bold;
-        }}
-        .section {{
-            background-color: rgba(255, 255, 255, 0.5);
-            padding: 15px;
-            margin: 15px 20px;
-            border-radius: 12px;
-            border-left: 4px solid #2e7d32;
-            text-align: left;
-        }}
-        .section-title {{
-            font-weight: bold;
-            color: #2e7d32;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }}
-        .components {{
-            font-size: 18px;
-            color: #4a6741;
-        }}
-        .info {{
-            font-size: 14px;
-            color: #666;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(0,0,0,0.1);
-        }}
-        .back {{
-            display: none;
-        }}
-    </style>
-</head>
-<body>
-    <button class="toggle-button" onclick="toggleCard()">Show Back</button>
-    <div class="card">
-        <div class="front">
-            <div class="card-type">Hanzi • HSK {hanzi_data.get('hsk_level', '?')} • Tian Level {hanzi_data.get('tian_level', '?')}</div>
-            <div class="character">{char}</div>
-        </div>
-        <div class="back">
-            <div class="card-type">Hanzi • HSK {hanzi_data.get('hsk_level', '?')} • Tian Level {hanzi_data.get('tian_level', '?')}</div>
-            <div class="character-with-reading">
-                <ruby>
-                    <rb class="character">{char}</rb>
-                    <rt class="pinyin-reading">{hanzi_data.get('pinyin', '?')}</rt>
-                </ruby>
-            </div>
-            <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
-            <div class="meaning">{meaning_text}</div>
-            <div class="section">
-                <div class="section-title">Meaning Mnemonic</div>
-                <div class="components">{meaning_mnemonic}</div>
-            </div>
-            <div class="section">
-                <div class="section-title">Reading Mnemonic</div>
-                <div class="components">{reading_mnemonic}</div>
-            </div>
-            <div class="section">
-                <div class="section-title">Components</div>
-                <div class="components">{components}</div>
-            </div>
-            <div class="info">Green theme • Component-based learning</div>
-        </div>
-    </div>
-    <script>
-        let showingFront = true;
-        function toggleCard() {{
-            const front = document.querySelector('.front');
-            const back = document.querySelector('.back');
-            const button = document.querySelector('.toggle-button');
-            
-            if (showingFront) {{
-                front.style.display = 'none';
-                back.style.display = 'block';
-                button.textContent = 'Show Front';
-            }} else {{
-                front.style.display = 'block';
-                back.style.display = 'none';
-                button.textContent = 'Show Back';
-            }}
-            showingFront = !showingFront;
-        }}
-    </script>
-</body>
-</html>"""
-    
-    @staticmethod
-    def _create_vocab_card_html(vocab_data: dict[str, Any]) -> str:
-        """Generate HTML for a vocabulary card preview."""
-        meaning_text = SampleGenerator._clean_text(vocab_data.get('meaning'), "Unknown")
-        example = SampleGenerator._clean_text(vocab_data.get('example'), "")
-        description = SampleGenerator._clean_text(vocab_data.get('description'), "")
-        if not example:
-            example = description
-        if not example:
-            example = "Example sentence not available."
-        breakdown = " ".join(list(vocab_data.get('word', ''))) or "N/A"
-
-        return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vocabulary Card Preview - {vocab_data.get('word', '')}</title>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            padding: 20px;
-        }}
-        .toggle-button {{
-            display: block;
-            margin: 0 auto 20px;
-            padding: 12px 24px;
-            background-color: #1565c0;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }}
-        .toggle-button:hover {{
-            background-color: #0d47a1;
-        }}
-        .card {{
-            font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
-            text-align: center;
-            color: #1a237e;
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-            padding: 20px;
-            max-width: 500px;
-            margin: 0 auto;
-            border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }}
-        .card-type {{
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #1565c0;
-        }}
-        .word {{
-            font-size: 80px;
-            margin: 30px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-            color: #0d47a1;
-        }}
-        .meaning {{
-            font-size: 32px;
-            font-weight: bold;
-            margin: 20px 0;
-            color: #1565c0;
-        }}
-        .word-with-reading {{
-            margin: 30px 0;
-            line-height: 1;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            gap: 5px;
-        }}
-        ruby {{
-            ruby-position: over;
-        }}
-        rt {{
-            ruby-align: center;
-            margin-bottom: 15px;
-        }}
-        .word-with-reading .word {{
-            font-size: 80px;
-            color: #0d47a1;
-        }}
-        .word-with-reading .vocab-char {{
-            font-size: 80px;
-            color: #0d47a1;
-        }}
-        .pinyin-reading {{
-            font-size: 24px;
-            color: #1976d2;
-            font-weight: bold;
-        }}
-        .section {{
-            background-color: rgba(255, 255, 255, 0.5);
-            padding: 15px;
-            margin: 15px 20px;
-            border-radius: 12px;
-            border-left: 4px solid #1565c0;
-            text-align: left;
-        }}
-        .section-title {{
-            font-weight: bold;
-            color: #1565c0;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }}
-        .content {{
-            font-size: 18px;
-            color: #283593;
-            line-height: 1.6;
-        }}
-        .info {{
-            font-size: 14px;
-            color: #666;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(0,0,0,0.1);
-        }}
-        .back {{
-            display: none;
-        }}
-    </style>
-</head>
-<body>
-    <button class="toggle-button" onclick="toggleCard()">Show Back</button>
-    <div class="card">
-        <div class="front">
-            <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Tian Level {vocab_data.get('tian_level', '?')}</div>
-            <div class="word">{vocab_data.get('word', '')}</div>
-        </div>
-        <div class="back">
-            <div class="card-type">Vocabulary • HSK {vocab_data.get('hsk_level', '?')} • Tian Level {vocab_data.get('tian_level', '?')}</div>
-            <div class="word-with-reading">
-                {create_ruby_text(vocab_data.get('word', ''), vocab_data.get('pinyin', ''))}
-            </div>
-            <hr style="border: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
-            <div class="meaning">{meaning_text}</div>
-            <div class="section">
-                <div class="section-title">Example</div>
-                <div class="content">{example}</div>
-            </div>
-            <div class="section">
-                <div class="section-title">Character Breakdown</div>
-                <div class="content">{breakdown}</div>
-            </div>
-            <div class="info">Blue theme • Context-based learning</div>
-        </div>
-    </div>
-    <script>
-        let showingFront = true;
-        function toggleCard() {{
-            const front = document.querySelector('.front');
-            const back = document.querySelector('.back');
-            const button = document.querySelector('.toggle-button');
-            
-            if (showingFront) {{
-                front.style.display = 'none';
-                back.style.display = 'block';
-                button.textContent = 'Show Front';
-            }} else {{
-                front.style.display = 'block';
-                back.style.display = 'none';
-                button.textContent = 'Show Back';
-            }}
-            showingFront = !showingFront;
-        }}
-    </script>
-</body>
-</html>"""
+    def _audio_placeholder(value: str) -> str:
+        """Return a simple audio indicator for preview purposes."""
+        return '🔊' if value else ''
     
     @staticmethod
     def _create_combined_view_html() -> str:
