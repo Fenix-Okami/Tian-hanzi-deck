@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pandas as pd
-
 from tian_hanzi.core.deck_pipeline import DeckBuildConfig, DeckBuilder
 
 
@@ -49,8 +47,6 @@ def test_deck_builder_builds_exports(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(builder.repository, "load_hanzi_levels", MagicMock(return_value={"你": 1}))
     monkeypatch.setattr(builder.repository, "extract_hanzi_from_vocabulary", MagicMock(return_value={"你"}))
-
-    monkeypatch.setattr(pd.DataFrame, "to_parquet", MagicMock())
 
     exports = builder.build()
 

@@ -1,9 +1,9 @@
 """Core pipeline for generating HSK deck artefacts.
 
 This module builds three tabular datasets (vocabulary, hanzi, radicals)
-from the raw HSK 3.0 sources.  The output is saved to CSV (and optionally
-Parquet) so that downstream scripts – including the Anki deck creator and
-HTML preview generator – can operate on consistent artefacts.
+from the raw HSK 3.0 sources.  The output is saved to CSV so that
+downstream scripts – including the Anki deck creator and HTML preview
+generator – can operate on consistent artefacts.
 """
 from __future__ import annotations
 
@@ -16,7 +16,6 @@ import pandas as pd
 
 from .components import ComponentAnalyzer
 from .data_sources import HSKDataRepository
-from .storage import ParquetDataManager
 
 __all__ = ["DeckBuildConfig", "DeckBuilder"]
 
@@ -29,7 +28,6 @@ class DeckBuildConfig:
     hsk_data_dir: str = "data/HSK-3.0"
     output_dir: str = "data"
     save_csv: bool = True
-    save_parquet: bool = True
 
 
 class DeckBuilder:
@@ -48,14 +46,12 @@ class DeckBuilder:
         decomposer: Optional[object] = None,
         stroke_counter: Optional[Callable[[str], int]] = None,
         repository: Optional[HSKDataRepository] = None,
-        storage: Optional[ParquetDataManager] = None,
     ) -> None:
         self.config = DeckBuildConfig(  # ensure we store immutable copy
             hsk_levels=tuple(config.hsk_levels),
             hsk_data_dir=config.hsk_data_dir,
             output_dir=config.output_dir,
             save_csv=config.save_csv,
-            save_parquet=config.save_parquet,
         )
 
         base_dir = Path(self.config.hsk_data_dir)
@@ -66,7 +62,6 @@ class DeckBuilder:
             self.stroke_counter = _fallback_stroke_counter
 
         self.repository = repository or HSKDataRepository(base_dir)
-        self.storage = storage or ParquetDataManager(self.config.output_dir)
         self.component_analyzer = ComponentAnalyzer(self.decomposer, self.dictionary)
 
     # ------------------------------------------------------------------
@@ -105,8 +100,6 @@ class DeckBuilder:
 
         if self.config.save_csv:
             self._save_csv(radicals, hanzi, vocabulary)
-        if self.config.save_parquet:
-            self.storage.save_all(radicals, hanzi, vocabulary)
 
         return exports
 
