@@ -21,6 +21,12 @@ import io
 import subprocess
 from pathlib import Path
 
+# Ensure the local package is importable when running from the repository root.
+ROOT_DIR = Path(__file__).resolve().parent
+SRC_DIR = ROOT_DIR / 'src'
+if SRC_DIR.exists() and str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
 # Windows console UTF-8 setup
 if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
@@ -29,70 +35,107 @@ if sys.platform == 'win32':
 try:
     import genanki
     import pandas as pd
+    from tian_hanzi.core.cards import create_ruby_text, format_components_with_meanings
+    from tian_hanzi.core.deck_templates import (
+        HANZI_MODEL_DEF,
+        RADICAL_MODEL_DEF,
+        VOCAB_MODEL_DEF,
+        create_genanki_model,
+    )
 except ImportError as e:
     print(f"❌ Error: Required library not installed - {e}")
     print("\nTo install dependencies, run:")
     print("  pip install -r requirements.txt")
     sys.exit(1)
 
-# Card utility functions (avoiding broken package imports)
-def create_ruby_text(word: str, pinyin: str) -> str:
-    """Create HTML ruby markup for the supplied word and pinyin pair."""
-    if not word or not pinyin:
-        return word
-
-    syllables = pinyin.strip().split()
-    chars = list(word)
-    if len(syllables) == len(chars):
-        ruby_parts = [
-            (
-                f'<ruby><rb class="vocab-char">{char}</rb>'
-                f'<rt class="pinyin-reading">{syllable}</rt></ruby>'
-            )
-            for char, syllable in zip(chars, syllables)
-        ]
-        return "".join(ruby_parts)
-
-    return (
-        f'<ruby><rb class="vocab-word">{word}</rb>'
-        f'<rt class="pinyin-reading">{pinyin}</rt></ruby>'
-    )
-
-
-def format_components_with_meanings(components, radicals_df):
-    """Format component strings along with their meanings from radicals_df."""
-    # Handle NaN and empty values
-    if pd.isna(components) or not components:
-        return "No components"
+# Card utility functions
+def pinyin_to_numbered(pinyin: str) -> str:
+    """
+    Convert accented pinyin to numbered format for yoyo audio lookup.
+    Example: 'nǐ' -> 'ni3', 'hǎo' -> 'hao3'
+    """
+    # Tone mark to number mapping
+    tone_map = {
+        'ā': ('a', '1'), 'á': ('a', '2'), 'ǎ': ('a', '3'), 'à': ('a', '4'),
+        'ē': ('e', '1'), 'é': ('e', '2'), 'ě': ('e', '3'), 'è': ('e', '4'),
+        'ī': ('i', '1'), 'í': ('i', '2'), 'ǐ': ('i', '3'), 'ì': ('i', '4'),
+        'ō': ('o', '1'), 'ó': ('o', '2'), 'ǒ': ('o', '3'), 'ò': ('o', '4'),
+        'ū': ('u', '1'), 'ú': ('u', '2'), 'ǔ': ('u', '3'), 'ù': ('u', '4'),
+        'ǖ': ('v', '1'), 'ǘ': ('v', '2'), 'ǚ': ('v', '3'), 'ǜ': ('v', '4'),
+        'ü': ('v', '5'),  # neutral tone ü
+    }
     
-    if isinstance(components, str):
-        if "|" in components:
-            split = [item.strip() for item in components.split("|") if item.strip()]
-        else:
-            split = [item.strip() for item in components.split(",") if item.strip()]
-    else:
-        # If it's iterable (list, etc.)
-        try:
-            split = [item for item in components if item]
-        except TypeError:
-            # If not iterable, convert to string
-            split = [str(components)]
+    syllable = pinyin.lower().strip()
+    tone = '5'  # default neutral tone
     
-    if not split:
-        return "No components"
+    # Find tone mark and convert
+    for char in syllable:
+        if char in tone_map:
+            base, tone = tone_map[char]
+            syllable = syllable.replace(char, base)
+            break
+    
+    return f"{syllable}{tone}"
 
-    formatted = []
-    for component in split:
-        match = radicals_df[radicals_df["radical"] == component]
-        if match.empty:
-            formatted.append(component)
-            continue
-        meaning = match.iloc[0].get("meaning", "")
-        if meaning and len(meaning) > 30:
-            meaning = meaning[:27] + "..."
-        formatted.append(f"{component} ({meaning})" if meaning else component)
 
-    return ", ".join(formatted) if formatted else "No components"
+def find_audio_file(pinyin: str, char_or_word: str, audio_type: str = 'hanzi') -> str:
+    """
+    Find audio file prioritizing yoyo audio, falling back to specific audio.
+    
+    Args:
+        pinyin: The pinyin (accented format like 'nǐ hǎo' for multi-syllable)
+        char_or_word: The character or word (like '你' or '你好')
+        audio_type: Either 'hanzi' or 'vocabulary'
+    
+    Returns:
+        Filename(s) to use in [sound:...] tags, or empty string if not found
+    """
+    # For multi-syllable words, create multiple [sound:] tags
+    if audio_type == 'vocabulary' and ' ' in pinyin:
+        syllables = pinyin.split()
+        sound_tags = []
+        all_found = True
+        
+        for syllable in syllables:
+            numbered = pinyin_to_numbered(syllable)
+            yoyo_path = f"data/yoyo_audio/{numbered}.mp3"
+            
+            if os.path.exists(yoyo_path):
+                sound_tags.append(f"[sound:{numbered}.mp3]")
+            else:
+                all_found = False
+                break
+        
+        # If all syllables found in yoyo, return concatenated tags
+        if all_found and sound_tags:
+            return "".join(sound_tags)
+        
+        # Fall back to specific word audio
+        specific_path = f"data/audio/vocabulary/{char_or_word}.mp3"
+        if os.path.exists(specific_path):
+            return f"[sound:{char_or_word}.mp3]"
+        
+        return ""
+    
+    # Single syllable - check yoyo audio first
+    numbered_pinyin = pinyin_to_numbered(pinyin)
+    yoyo_path = f"data/yoyo_audio/{numbered_pinyin}.mp3"
+    
+    if os.path.exists(yoyo_path):
+        # Return just the filename (genanki flattens all media to root)
+        return f"[sound:{numbered_pinyin}.mp3]"
+    
+    # Fall back to specific audio
+    if audio_type == 'hanzi':
+        specific_path = f"data/audio/hanzi/{char_or_word}.mp3"
+        if os.path.exists(specific_path):
+            return f"[sound:{char_or_word}.mp3]"
+    elif audio_type == 'vocabulary':
+        specific_path = f"data/audio/vocabulary/{char_or_word}.mp3"
+        if os.path.exists(specific_path):
+            return f"[sound:{char_or_word}.mp3]"
+    
+    return ""
 
 
 def run_breakpoint_analysis():
@@ -434,7 +477,7 @@ hanzi_df['meaning'] = hanzi_df['meaning'].fillna('')
 
 vocabulary_mn_df = load_mnemonic_table('data/vocabulary_mnemonic.csv', 'word')
 if not vocabulary_mn_df.empty:
-    print(f"🔄 Merging vocabulary mnemonics from vocabulary_mnemonic.csv...")
+    print("🔄 Merging vocabulary mnemonics from vocabulary_mnemonic.csv...")
     print(f"   Loaded {len(vocabulary_mn_df)} vocabulary entries with columns: {list(vocabulary_mn_df.columns)}")
     
     vocabulary_merge = vocabulary_mn_df.copy()
@@ -461,23 +504,23 @@ if not vocabulary_mn_df.empty:
     # If CSV has 'description' column, use it directly
     if 'description' in vocabulary_merge.columns:
         merge_cols.append('description')
-        print(f"   ✓ Found 'description' column")
+        print("   ✓ Found 'description' column")
     elif 'description_mnemonic' in vocabulary_merge.columns:
         vocabulary_merge = vocabulary_merge.rename(columns={'description_mnemonic': 'description'})
         merge_cols.append('description')
-        print(f"   ✓ Found 'description_mnemonic' column (renamed to 'description')")
+        print("   ✓ Found 'description_mnemonic' column (renamed to 'description')")
     
     # If CSV has 'hanzi_breakdown' column, use it
     if 'hanzi_breakdown' in vocabulary_merge.columns:
         merge_cols.append('hanzi_breakdown')
-        print(f"   ✓ Found 'hanzi_breakdown' column")
+        print("   ✓ Found 'hanzi_breakdown' column")
 
     print(f"   Merging columns: {merge_cols}")
     
     if len(merge_cols) > 1:
         vocab_df = vocab_df.merge(vocabulary_merge[merge_cols], on='word', how='left')
-        print(f"   ✓ Merged vocabulary data")
-        
+        print("   ✓ Merged vocabulary data")
+
         # Debug: Check first few rows
         sample_word = vocab_df.iloc[0]['word']
         sample_desc = vocab_df.iloc[0].get('description', 'NOT FOUND')
@@ -516,448 +559,10 @@ VOCAB_HSK1_DECK_ID = random.randrange(1 << 30, 1 << 31)
 VOCAB_HSK2_DECK_ID = random.randrange(1 << 30, 1 << 31)
 VOCAB_HSK3_DECK_ID = random.randrange(1 << 30, 1 << 31)
 
-# Card model for Radicals (Brown theme)
-radical_model = genanki.Model(
-    RADICAL_MODEL_ID,
-    'HSK Radical Model',
-    fields=[
-        {'name': 'Radical'},
-        {'name': 'Meaning'},
-        {'name': 'Productivity'},
-        {'name': 'HSK1Count'},
-        {'name': 'HSK2Count'},
-        {'name': 'HSK3Count'},
-        {'name': 'Level'},
-    ],
-    templates=[
-        {
-            'name': 'Radical Recognition',
-            'qfmt': '''
-                <div class="card-type radical-type">Radical • Level {{Level}}</div>
-                <div class="character radical-char">{{Radical}}</div>
-            ''',
-            'afmt': '''
-                {{FrontSide}}
-                <hr id="answer">
-                <div class="meaning radical-meaning">{{Meaning}}</div>
-                <div class="hsk-breakdown">
-                    <div class="breakdown-title">HSK Distribution</div>
-                    <div class="breakdown-bars">
-                        <div class="breakdown-row">
-                            <div class="breakdown-label">HSK 1</div>
-                            <div class="breakdown-bar-container">
-                                <div class="breakdown-bar hsk1" style="width: calc({{HSK1Count}} / {{Productivity}} * 100%);">
-                                    <span class="breakdown-count">{{HSK1Count}}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="breakdown-row">
-                            <div class="breakdown-label">HSK 2</div>
-                            <div class="breakdown-bar-container">
-                                <div class="breakdown-bar hsk2" style="width: calc({{HSK2Count}} / {{Productivity}} * 100%);">
-                                    <span class="breakdown-count">{{HSK2Count}}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="breakdown-row">
-                            <div class="breakdown-label">HSK 3</div>
-                            <div class="breakdown-bar-container">
-                                <div class="breakdown-bar hsk3" style="width: calc({{HSK3Count}} / {{Productivity}} * 100%);">
-                                    <span class="breakdown-count">{{HSK3Count}}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ''',
-        },
-    ],
-    css='''
-        .card {
-            font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
-            text-align: center;
-            color: #4a3728;
-            background: linear-gradient(135deg, #f5e6d3 0%, #e8d5c4 100%);
-            padding: 20px;
-        }
-        .card-type {
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        .radical-type { color: #8b4513; }
-        .character {
-            font-size: 120px;
-            margin: 30px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-        }
-        .radical-char { color: #654321; }
-        .prompt {
-            font-size: 20px;
-            color: #6b5544;
-            margin: 20px 0;
-        }
-        .meaning {
-            font-size: 32px;
-            font-weight: bold;
-            margin: 20px 0;
-        }
-        .radical-meaning { color: #8b4513; }
-        .hsk-breakdown {
-            margin: 25px auto;
-            max-width: 400px;
-            background-color: rgba(255, 255, 255, 0.6);
-            padding: 20px;
-            border-radius: 12px;
-            border-left: 4px solid #8b4513;
-        }
-        .breakdown-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #654321;
-            margin-bottom: 15px;
-            text-align: center;
-        }
-        .breakdown-bars {
-            text-align: left;
-        }
-        .breakdown-row {
-            margin: 10px 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .breakdown-label {
-            font-size: 14px;
-            font-weight: bold;
-            color: #5a4a3a;
-            min-width: 50px;
-        }
-        .breakdown-bar-container {
-            flex: 1;
-            background-color: rgba(139, 69, 19, 0.1);
-            border-radius: 10px;
-            overflow: hidden;
-            height: 30px;
-            position: relative;
-        }
-        .breakdown-bar {
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 10px;
-            transition: width 0.3s ease;
-            min-width: 30px;
-        }
-        .breakdown-bar.hsk1 {
-            background: linear-gradient(90deg, #ff6b6b 0%, #ff8787 100%);
-        }
-        .breakdown-bar.hsk2 {
-            background: linear-gradient(90deg, #4dabf7 0%, #74c0fc 100%);
-        }
-        .breakdown-bar.hsk3 {
-            background: linear-gradient(90deg, #51cf66 0%, #8ce99a 100%);
-        }
-        .breakdown-count {
-            font-size: 13px;
-            font-weight: bold;
-            color: white;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        }
-    '''
-)
-
-# Card model for Hanzi (Green theme)
-hanzi_model = genanki.Model(
-    HANZI_MODEL_ID,
-    'HSK Hanzi Model',
-    fields=[
-        {'name': 'Character'},
-        {'name': 'Meaning'},
-        {'name': 'Reading'},
-        {'name': 'Radicals'},
-        {'name': 'MeaningMnemonic'},
-        {'name': 'ReadingMnemonic'},
-        {'name': 'HSKLevel'},
-        {'name': 'Level'},
-        {'name': 'Audio'},
-    ],
-    templates=[
-        {
-            'name': 'Character Recognition',
-            'qfmt': '''
-                <div class="card-type hanzi-type">Hanzi • HSK {{HSKLevel}} • Level {{Level}}</div>
-                <div class="character hanzi-char">{{Character}}</div>
-            ''',
-            'afmt': '''
-                <div class="card-type hanzi-type">Hanzi • HSK {{HSKLevel}} • Level {{Level}}</div>
-                <div class="character-with-reading">
-                    <div class="reading-row">
-                        <span class="pinyin-reading">{{Reading}}</span>
-                        <span class="audio-inline">{{Audio}}</span>
-                    </div>
-                    <div class="hanzi-char">{{Character}}</div>
-                </div>
-                <div class="meaning hanzi-meaning">{{Meaning}}</div>
-                <div class="section">
-                    <div class="section-title">Meaning Mnemonic</div>
-                    <div class="mnemonic">{{MeaningMnemonic}}</div>
-                </div>
-                <div class="section">
-                    <div class="section-title">Reading Mnemonic</div>
-                    <div class="mnemonic">{{ReadingMnemonic}}</div>
-                </div>
-                <div class="section">
-                    <div class="section-title">Components</div>
-                    <div class="radicals">{{Radicals}}</div>
-                </div>
-            ''',
-        },
-    ],
-    css='''
-        .card {
-            font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
-            text-align: center;
-            color: #2d4a2b;
-            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-            padding: 20px;
-        }
-        .card-type {
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        .hanzi-type { color: #2e7d32; }
-        .character {
-            font-size: 120px;
-            margin: 30px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-        }
-        .hanzi-char { color: #1b5e20; }
-        .prompt {
-            font-size: 20px;
-            color: #4a6741;
-            margin: 20px 0;
-        }
-        .meaning {
-            font-size: 32px;
-            font-weight: bold;
-            margin: 20px 0;
-        }
-        .hanzi-meaning { color: #2e7d32; }
-        .character-with-reading {
-            margin: 30px 0;
-            line-height: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-        }
-        .reading-row {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .character-with-reading .hanzi-char {
-            font-size: 120px;
-            color: #1b5e20;
-        }
-        .pinyin-reading {
-            font-size: 28px;
-            color: #558b2f;
-            font-weight: bold;
-        }
-        .audio-inline {
-            display: inline-flex;
-            align-items: center;
-        }
-        .section {
-            background-color: rgba(255, 255, 255, 0.5);
-            padding: 15px;
-            margin: 15px 20px;
-            border-radius: 12px;
-            border-left: 4px solid #2e7d32;
-        }
-        .section-title {
-            font-weight: bold;
-            color: #2e7d32;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-        .radicals {
-            font-size: 18px;
-            color: #4a6741;
-        }
-        .mnemonic {
-            font-size: 16px;
-            color: #4a6741;
-            text-align: center;
-        }
-    '''
-)
-
-# Card model for Vocabulary (Blue theme)
-vocab_model = genanki.Model(
-    VOCAB_MODEL_ID,
-    'HSK Vocabulary Model',
-    fields=[
-        {'name': 'Word'},
-        {'name': 'Meaning'},
-        {'name': 'Reading'},
-        {'name': 'RubyText'},
-        {'name': 'HanziBreakdown'},
-        {'name': 'Description'},
-        {'name': 'HSKLevel'},
-        {'name': 'Level'},
-        {'name': 'Audio'},
-    ],
-    templates=[
-        {
-            'name': 'Word Recognition',
-            'qfmt': '''
-                <div class="card-type vocab-type">Vocabulary • HSK {{HSKLevel}} • Level {{Level}}</div>
-                <div class="word vocab-word">{{Word}}</div>
-            ''',
-            'afmt': '''
-                <div class="card-type vocab-type">Vocabulary • HSK {{HSKLevel}} • Level {{Level}}</div>
-                <div class="word-with-reading">
-                    {{RubyText}}
-                </div>
-                <hr id="answer">
-                <div class="meaning vocab-meaning">{{Meaning}}</div>
-                <div class="audio-section">{{Audio}}</div>
-                <div class="section">
-                    <div class="section-title">Description</div>
-                    <div class="description">{{Description}}</div>
-                </div>
-                <div class="section">
-                    <div class="section-title">Hanzi Breakdown</div>
-                    <div class="characters">{{HanziBreakdown}}</div>
-                </div>
-            ''',
-        },
-    ],
-    css='''
-        .card {
-            font-family: Arial, "Microsoft YaHei", SimSun, sans-serif;
-            text-align: center;
-            color: #1a237e;
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-            padding: 20px;
-        }
-        .card-type {
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        .vocab-type { color: #1565c0; }
-        .word {
-            font-size: 80px;
-            margin: 30px 0;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-        }
-        .vocab-word { color: #0d47a1; }
-        .prompt {
-            font-size: 20px;
-            color: #283593;
-            margin: 20px 0;
-        }
-        .meaning {
-            font-size: 32px;
-            font-weight: bold;
-            margin: 20px 0;
-        }
-        .vocab-meaning { color: #1565c0; }
-        .word-with-reading {
-            margin: 30px 0;
-            line-height: 1;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            gap: 5px;
-        }
-        ruby {
-            ruby-position: over;
-        }
-        rt {
-            ruby-align: center;
-            margin-bottom: 15px;
-        }
-        .word-with-reading .vocab-word {
-            font-size: 80px;
-            color: #0d47a1;
-        }
-        .word-with-reading .vocab-char {
-            font-size: 80px;
-            color: #0d47a1;
-        }
-        .pinyin-reading {
-            font-size: 24px;
-            color: #1976d2;
-            font-weight: bold;
-        }
-        .audio-controls {
-            margin: 15px 0;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            justify-content: center;
-        }
-        .audio-controls button {
-            background-color: #1565c0;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .audio-controls button:hover {
-            background-color: #0d47a1;
-        }
-        .audio-controls label {
-            font-size: 14px;
-            color: #555;
-            cursor: pointer;
-        }
-        .audio-controls input[type="checkbox"] {
-            cursor: pointer;
-        }
-        .section {
-            background-color: rgba(255, 255, 255, 0.5);
-            padding: 15px;
-            margin: 15px 20px;
-            border-radius: 12px;
-            border-left: 4px solid #1565c0;
-            text-align: left;
-        }
-        .section-title {
-            font-weight: bold;
-            color: #1565c0;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-        .characters {
-            font-size: 18px;
-            color: #283593;
-            line-height: 1.6;
-        }
-        .description {
-            font-size: 16px;
-            color: #283593;
-            line-height: 1.8;
-            text-align: left;
-        }
-    '''
-)
+# Card models (shared templates defined in tian_hanzi.core.deck_templates)
+radical_model = create_genanki_model(RADICAL_MODEL_ID, RADICAL_MODEL_DEF)
+hanzi_model = create_genanki_model(HANZI_MODEL_ID, HANZI_MODEL_DEF)
+vocab_model = create_genanki_model(VOCAB_MODEL_ID, VOCAB_MODEL_DEF)
 
 # Create parent deck and seven subdecks
 radical_deck = genanki.Deck(
@@ -1077,9 +682,8 @@ for idx, row in hanzi_df.iterrows():
         target_deck = hanzi_hsk1_deck  # Default to HSK1
         hanzi_counts['unknown'] += 1
     
-    # Generate audio field with [sound:] tag for Anki's built-in playback
-    audio_filename = f"{char}.mp3"
-    audio_field = f"[sound:{audio_filename}]"
+    # Generate audio field using yoyo audio (prioritized) or specific hanzi audio (fallback)
+    audio_field = find_audio_file(str(row['pinyin']), char, 'hanzi')
     
     note = genanki.Note(
         model=hanzi_model,
@@ -1138,9 +742,8 @@ for idx, row in vocab_df.iterrows():
         target_deck = vocab_hsk1_deck  # Default to HSK1
         vocab_counts['hsk1'] += 1
     
-    # Generate audio field with [sound:] tag for Anki's built-in playback
-    audio_filename = f"{word}.mp3"
-    audio_field = f"[sound:{audio_filename}]"
+    # Generate audio field using yoyo audio (prioritized) or specific vocab audio (fallback)
+    audio_field = find_audio_file(pinyin, word, 'vocabulary')
     
     note = genanki.Note(
         model=vocab_model,
@@ -1170,24 +773,79 @@ os.makedirs('anki_deck', exist_ok=True)
 # Collect audio files for media
 print("\n🔊 Collecting audio files...")
 media_files = []
+yoyo_used = set()
+specific_used = set()
 
-# Collect hanzi audio files
+# Collect hanzi audio files (prioritize yoyo, fallback to specific)
 hanzi_audio_dir = 'data/audio/hanzi'
-if os.path.exists(hanzi_audio_dir):
-    for char in hanzi_df.get('hanzi', hanzi_df.get('character', [])):
-        audio_path = os.path.join(hanzi_audio_dir, f"{char}.mp3")
-        if os.path.exists(audio_path):
-            media_files.append(audio_path)
+yoyo_audio_dir = 'data/yoyo_audio'
 
-# Collect vocabulary audio files  
+for idx, row in hanzi_df.iterrows():
+    char = row.get('hanzi', row.get('character', ''))
+    pinyin = str(row['pinyin'])
+    
+    # Try yoyo audio first
+    numbered_pinyin = pinyin_to_numbered(pinyin)
+    yoyo_path = os.path.join(yoyo_audio_dir, f"{numbered_pinyin}.mp3")
+    
+    if os.path.exists(yoyo_path) and yoyo_path not in yoyo_used:
+        media_files.append(yoyo_path)
+        yoyo_used.add(yoyo_path)
+    else:
+        # Fall back to specific hanzi audio
+        specific_path = os.path.join(hanzi_audio_dir, f"{char}.mp3")
+        if os.path.exists(specific_path):
+            media_files.append(specific_path)
+            specific_used.add(specific_path)
+
+# Collect vocabulary audio files (prioritize yoyo syllables, fallback to specific)
 vocab_audio_dir = 'data/audio/vocabulary'
-if os.path.exists(vocab_audio_dir):
-    for word in vocab_df['word']:
-        audio_path = os.path.join(vocab_audio_dir, f"{word}.mp3")
-        if os.path.exists(audio_path):
-            media_files.append(audio_path)
 
-print(f"   ✓ Found {len(media_files)} audio files")
+for idx, row in vocab_df.iterrows():
+    word = str(row['word'])
+    pinyin = str(row['pinyin'])
+    
+    # For multi-syllable words, collect each syllable's yoyo audio
+    if ' ' in pinyin:
+        syllables = pinyin.split()
+        all_syllables_found = True
+        
+        for syllable in syllables:
+            numbered = pinyin_to_numbered(syllable)
+            yoyo_path = os.path.join(yoyo_audio_dir, f"{numbered}.mp3")
+            
+            if os.path.exists(yoyo_path):
+                if yoyo_path not in yoyo_used:
+                    media_files.append(yoyo_path)
+                    yoyo_used.add(yoyo_path)
+            else:
+                all_syllables_found = False
+                break
+        
+        # If not all syllables found in yoyo, fall back to specific word audio
+        if not all_syllables_found:
+            specific_path = os.path.join(vocab_audio_dir, f"{word}.mp3")
+            if os.path.exists(specific_path):
+                media_files.append(specific_path)
+                specific_used.add(specific_path)
+    else:
+        # Single syllable - try yoyo first
+        numbered_pinyin = pinyin_to_numbered(pinyin)
+        yoyo_path = os.path.join(yoyo_audio_dir, f"{numbered_pinyin}.mp3")
+        
+        if os.path.exists(yoyo_path) and yoyo_path not in yoyo_used:
+            media_files.append(yoyo_path)
+            yoyo_used.add(yoyo_path)
+        else:
+            # Fall back to specific vocab audio
+            specific_path = os.path.join(vocab_audio_dir, f"{word}.mp3")
+            if os.path.exists(specific_path):
+                media_files.append(specific_path)
+                specific_used.add(specific_path)
+
+print(f"   ✓ Found {len(media_files)} audio files:")
+print(f"      • {len(yoyo_used)} yoyo syllable audio")
+print(f"      • {len(specific_used)} specific character/word audio")
 
 # Save the deck package with all three subdecks
 output_file = 'anki_deck/HSK_1-3_Hanzi_Deck.apkg'

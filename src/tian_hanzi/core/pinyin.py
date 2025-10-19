@@ -24,6 +24,9 @@ def numbered_to_accented(pinyin: str | None) -> str | None:
     if not pinyin:
         return pinyin
 
+    # Convert to lowercase for consistent output
+    pinyin = pinyin.lower()
+
     converted: list[str] = []
     for syllable in pinyin.split():
         if not syllable:

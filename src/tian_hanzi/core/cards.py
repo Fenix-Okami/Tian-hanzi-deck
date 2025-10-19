@@ -64,11 +64,27 @@ def create_ruby_text(word: str, pinyin: str) -> str:
 
 
 def _split_components(value: str | Iterable[str]) -> list[str]:
+    """Split the stored component representation into individual entries."""
+    if value is None:
+        return []
+
+    try:
+        if pd.isna(value):  # type: ignore[arg-type]
+            return []
+    except TypeError:
+        # Non-numeric iterables (like lists) fall through below.
+        pass
+
     if isinstance(value, str):
         if "|" in value:
             return [item.strip() for item in value.split("|") if item.strip()]
         return [item.strip() for item in value.split(",") if item.strip()]
-    return [item for item in value if item]
+
+    try:
+        return [item for item in value if item]
+    except TypeError:
+        # Value is not iterable (e.g., an int); fall back to string conversion.
+        return [str(value)] if value else []
 
 
 def format_components_with_meanings(
