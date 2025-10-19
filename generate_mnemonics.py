@@ -13,7 +13,7 @@ import generate_hanzi_mnemonics as hanzi_module
 import generate_radical_mnemonics as radical_module
 import generate_vocab_mnemonics as vocab_module
 
-DEFAULT_MODEL = "gpt-5"
+DEFAULT_MODEL = "gpt-5-mini"
 DEFAULT_RADICALS_IN = "data/radicals_tian.csv"
 DEFAULT_HANZI_IN = "data/hanzi.csv"
 DEFAULT_VOCAB_IN = "data/vocabulary.csv"
@@ -23,7 +23,7 @@ DEFAULT_VOCAB_OUT = "data/vocabulary_mnemonic.csv"
 DEFAULT_BATCH_SIZE = 10
 DEFAULT_WORKERS = 6
 DEFAULT_RATE_DELAY = 0.4
-DEFAULT_RESUME = False
+DEFAULT_RESUME = True
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -13,10 +13,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from mnemonic_common import (
     OpenAI,
-    append_rows_csv,
     chat_call,
     init_openai_client,
-    load_done_keys,
     load_env,
     parse_tagged_response,
     pd,
@@ -123,27 +121,46 @@ def generate_hanzi_row(
         reading_mnemonic = f"[Placeholder] pronounced {pinyin}"
         keyword = extract_keyword(meaning_gloss)
     else:
-        system, user = hanzi_prompt(hanzi, meaning_gloss, pinyin, components_list, hsk_level)
-        content = chat_call(client, model, system, user, max_tokens=2000, effort="low", debug=debug)
-        if debug:
-            print(f"\n[DEBUG] Raw response for {hanzi}: {content}")
+        # Retry generation up to 5 times on parsing or API issues
+        attempts = 0
+        last_exc: Optional[Exception] = None
+        while attempts < 5:
+            attempts += 1
+            try:
+                system, user = hanzi_prompt(hanzi, meaning_gloss, pinyin, components_list, hsk_level)
+                content = chat_call(
+                    client, model, system, user, max_tokens=2000, effort="minimal", debug=debug
+                )
+                if debug:
+                    print(f"\n[DEBUG] Raw response for {hanzi}: {content}")
 
-        keyword = ""
-        try:
-            cleaned = re.sub(r"^```json\s*|\s*```$", "", content.strip(), flags=re.MULTILINE)
-            payload = json.loads(cleaned)
-            keyword = (payload.get("keyword", "") or "").strip().lower()
-            meaning_mnemonic = payload.get("meaning_mnemonic", "")
-            reading_mnemonic = payload.get("reading_mnemonic", "")
-        except json.JSONDecodeError:
-            meaning_mnemonic, reading_mnemonic, _ = parse_tagged_response(content)
-            keyword = ""
+                keyword = ""
+                try:
+                    cleaned = re.sub(r"^```json\s*|\s*```$", "", content.strip(), flags=re.MULTILINE)
+                    payload = json.loads(cleaned)
+                    keyword = (payload.get("keyword", "") or "").strip().lower()
+                    meaning_mnemonic = payload.get("meaning_mnemonic", "")
+                    reading_mnemonic = payload.get("reading_mnemonic", "")
+                except json.JSONDecodeError:
+                    # Try to parse simple tagged fallback
+                    meaning_mnemonic, reading_mnemonic, _ = parse_tagged_response(content)
+                    keyword = ""
 
-        if not keyword:
+                if not keyword:
+                    keyword = extract_keyword(meaning_gloss)
+                meaning_mnemonic = meaning_mnemonic or f"[Placeholder] {hanzi} = {meaning_gloss}"
+                reading_mnemonic = reading_mnemonic or f"[Placeholder] pronounced {pinyin}"
+                time.sleep(rate_delay)
+                break
+            except Exception as exc:
+                last_exc = exc
+                # brief linear backoff between attempts
+                time.sleep(min(1.5 * attempts, 5))
+        else:
+            # After retries, return error markers
+            meaning_mnemonic = f"Error: {last_exc}"
+            reading_mnemonic = f"Error: {last_exc}"
             keyword = extract_keyword(meaning_gloss)
-        meaning_mnemonic = meaning_mnemonic or f"[Placeholder] {hanzi} = {meaning_gloss}"
-        reading_mnemonic = reading_mnemonic or f"[Placeholder] pronounced {pinyin}"
-        time.sleep(rate_delay)
 
     meaning_keyword = keyword or extract_keyword(meaning_gloss)
 
@@ -166,6 +183,17 @@ def build_radical_map(path: str) -> Dict[str, str]:
     return {str(row["radical"]): simple_meaning(row.get("meaning", "")) for _, row in df.iterrows()}
 
 
+def _is_error_row(row: pd.Series) -> bool:
+    """Heuristics to identify rows that failed generation earlier."""
+    mm = str(row.get("meaning_mnemonic", ""))
+    rm = str(row.get("reading_mnemonic", ""))
+    if mm.startswith("Error:") or rm.startswith("Error:"):
+        return True
+    if mm.startswith("[Placeholder]") or rm.startswith("[Placeholder]"):
+        return True
+    return False
+
+
 def run(args, client: Optional[OpenAI] = None) -> Optional[OpenAI]:
     load_env()
     df = pd.read_csv(args.hanzi)
@@ -173,12 +201,37 @@ def run(args, client: Optional[OpenAI] = None) -> Optional[OpenAI]:
         df = df.head(5).copy()
 
     radical_map = build_radical_map(args.radicals)
-    done = load_done_keys(args.out, "hanzi") if args.resume else set()
-    to_process: List[pd.Series] = [row for _, row in df.iterrows() if str(row["hanzi"]) not in done]
+    # Load existing output rows if any
+    existing_map: Dict[str, Dict[str, Any]] = {}
+    if os.path.exists(args.out):
+        try:
+            existing_df = pd.read_csv(args.out)
+            for _, r in existing_df.iterrows():
+                existing_map[str(r.get("hanzi", ""))] = {k: r.get(k, "") for k in existing_df.columns}
+        except Exception:
+            existing_map = {}
+
+    # Select what to process: if resume is True, process only missing or error rows; otherwise all
+    to_process: List[pd.Series] = []
+    if args.resume and existing_map:
+        # Build set of error/missing hanzi
+        existing_df = pd.DataFrame(existing_map.values()) if existing_map else pd.DataFrame()
+        error_keys = set()
+        if not existing_df.empty:
+            error_keys = set(
+                str(r["hanzi"]) for _, r in existing_df.iterrows() if _is_error_row(r)
+            )
+        for _, row in df.iterrows():
+            key = str(row["hanzi"]) 
+            if key not in existing_map or key in error_keys:
+                to_process.append(row)
+    else:
+        to_process = [row for _, row in df.iterrows()]
 
     print(f"Total hanzi loaded: {len(df)}")
-    if done:
-        print(f"Skipping {len(done)} already generated entries.")
+    skipped = len(df) - len(to_process)
+    if skipped > 0:
+        print(f"Skipping {skipped} already generated entries.")
 
     if not to_process:
         print("Nothing to generate.")
@@ -188,8 +241,6 @@ def run(args, client: Optional[OpenAI] = None) -> Optional[OpenAI]:
     if not args.dry_run and local_client is None:
         print("No API client available. Running in dry-run mode.")
 
-    existing_file = os.path.exists(args.out)
-    header_written = existing_file
     worker_count = max(1, args.workers)
 
     print(f"Generating {len(to_process)} hanzi mnemonics using {worker_count} worker(s).")
@@ -228,11 +279,30 @@ def run(args, client: Optional[OpenAI] = None) -> Optional[OpenAI]:
                     }
                 batch.append(result)
                 progress.update(1)
+                # Periodically merge into existing_map to avoid memory growth
                 if len(batch) >= args.batch_size or progress.n == len(to_process):
-                    append_rows_csv(args.out, batch, header=(not header_written))
-                    header_written = True
+                    for item in batch:
+                        key = str(item.get("hanzi", ""))
+                        if key and key != "?":
+                            existing_map[key] = item
                     batch = []
 
+    # Persist: rewrite file with updated rows (replace entries)
+    # Preserve order of input hanzi where possible
+    final_rows: List[Dict[str, Any]] = []
+    for _, row in df.iterrows():
+        key = str(row["hanzi"]) 
+        if key in existing_map:
+            final_rows.append(existing_map[key])
+    # Include any extra rows previously present but not in current input (unlikely)
+    input_keys = {str(row["hanzi"]) for _, row in df.iterrows()}
+    for k, v in existing_map.items():
+        if k not in input_keys:
+            final_rows.append(v)
+
+    out_df = pd.DataFrame(final_rows)
+    out_df.to_csv(args.out, index=False, encoding="utf-8")
+
     print(f"Finished hanzi. Errors: {errors}")
-    print(f"Output written to {args.out}")
+    print(f"Output written (rewritten) to {args.out}")
     return local_client
