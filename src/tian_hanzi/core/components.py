@@ -35,13 +35,26 @@ class ComponentAnalyzer:
         by_level: dict[int, Counter] = {1: Counter(), 2: Counter(), 3: Counter()}
 
         for index, char in enumerate(sorted(hanzi)):
-            definitions = self.dictionary.definition_lookup(char)
-            if not definitions:
-                continue
-            pinyin = numbered_to_accented(definitions[0].get("pinyin", ""))
-            combined = "; ".join(
-                entry.get("definition", "") for entry in definitions if entry.get("definition")
-            )
+            try:
+                definitions = self.dictionary.definition_lookup(char)
+            except Exception:
+                definitions = []
+
+            pinyin_source = ""
+            definition_parts: list[str] = []
+
+            for entry in definitions:
+                definition_text = entry.get("definition", "")
+                if definition_text:
+                    definition_parts.append(definition_text)
+                if definition_text and not definition_text.strip().lower().startswith("surname "):
+                    pinyin_source = pinyin_source or entry.get("pinyin", "")
+
+            if not pinyin_source and definitions:
+                pinyin_source = definitions[0].get("pinyin", "")
+
+            pinyin = numbered_to_accented(pinyin_source) or ""
+            combined = "; ".join(part for part in definition_parts if part)
             meaning, is_surname = clean_surname_from_definition(combined)
 
             try:

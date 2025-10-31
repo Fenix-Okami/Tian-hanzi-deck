@@ -1,6 +1,7 @@
 """Utilities for building Hanzi deck card content."""
 from __future__ import annotations
 
+import re
 from typing import Iterable
 
 import pandas as pd
@@ -24,20 +25,19 @@ def clean_surname_from_definition(definition: str | None) -> tuple[str, bool]:
         if not candidate:
             continue
         lower = candidate.lower()
-        if lower.startswith("surname "):
-            is_surname = True
-            continue
         if "surname " in lower:
             is_surname = True
-            subparts = [sub.strip() for sub in candidate.split("/") if sub.strip()]
-            filtered = [sub for sub in subparts if not sub.lower().startswith("surname ")]
-            if filtered:
-                parts.append("/".join(filtered))
+            cleaned = _SURNAME_PATTERN.sub("", candidate).strip(" ;,/")
+            if cleaned:
+                parts.append(cleaned)
             continue
         parts.append(candidate)
 
     cleaned = "; ".join(parts).strip()
     return cleaned, is_surname
+
+
+_SURNAME_PATTERN = re.compile(r"(?i)surname [^,;/]+[,;/]?\s*")
 
 
 def create_ruby_text(word: str, pinyin: str) -> str:

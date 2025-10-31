@@ -8,6 +8,7 @@ generator – can operate on consistent artefacts.
 from __future__ import annotations
 
 import csv
+import importlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Sequence
@@ -217,9 +218,20 @@ class _HSKDictionary:
     def __init__(self, data_dir: Path) -> None:
         self.entries: Dict[str, List[dict]] = {}
         self._load_meanings(data_dir)
+        self._cedict_cache: Optional[Dict[str, List[dict]]] = None
 
     def definition_lookup(self, term: str) -> List[dict]:  # pragma: no cover - simple proxy
-        return [entry.copy() for entry in self.entries.get(term, [])]
+        cached = self.entries.get(term)
+        if cached:
+            return [entry.copy() for entry in cached]
+
+        fallback = self._cedict_lookup(term)
+        if fallback:
+            # Cache the fallback result so repeated lookups are cheap
+            self.entries[term] = [entry.copy() for entry in fallback]
+            return fallback
+
+        return []
 
     # Internal helpers --------------------------------------------------
     def _load_meanings(self, data_dir: Path) -> None:
@@ -241,6 +253,66 @@ class _HSKDictionary:
                         if not key:
                             continue
                         self.entries.setdefault(key, []).append(entry)
+
+    # Internal helpers --------------------------------------------------
+    def _cedict_lookup(self, term: str) -> List[dict]:
+        cache = self._get_cedict_cache()
+        if not cache:
+            return []
+        entries = cache.get(term)
+        if not entries:
+            return []
+        return [entry.copy() for entry in entries]
+
+    def _get_cedict_cache(self) -> Dict[str, List[dict]]:
+        if self._cedict_cache is not None:
+            return self._cedict_cache
+
+        try:
+            hanzipy_module = importlib.import_module("hanzipy")
+        except Exception:
+            self._cedict_cache = {}
+            return self._cedict_cache
+
+        base_path = Path(getattr(hanzipy_module, "__file__", "")).parent
+        cedict_path = base_path / "data" / "cedict_ts.u8"
+        cache: Dict[str, List[dict]] = {}
+
+        try:
+            with cedict_path.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    if not line or line.startswith("#"):
+                        continue
+
+                    try:
+                        open_bracket = line.index("[")
+                        close_bracket = line.index("]")
+                        def_start = line.index("/")
+                        def_end = line.rindex("/")
+                    except ValueError:
+                        continue
+
+                    header = line[:open_bracket].strip().split()
+                    if len(header) < 2:
+                        continue
+
+                    traditional, simplified = header[0], header[1]
+                    if len(simplified) != 1:
+                        continue
+
+                    pinyin = line[open_bracket + 1 : close_bracket]
+                    definition_raw = line[def_start + 1 : def_end]
+                    definition = definition_raw.replace("/", "; ").strip()
+                    entry = {"pinyin": pinyin, "definition": definition}
+
+                    cache.setdefault(simplified, []).append(entry)
+                    if traditional != simplified and len(traditional) == 1:
+                        cache.setdefault(traditional, []).append(entry)
+        except FileNotFoundError:
+            cache = {}
+
+        self._cedict_cache = cache
+        return self._cedict_cache
 
 
 def _create_default_decomposer():

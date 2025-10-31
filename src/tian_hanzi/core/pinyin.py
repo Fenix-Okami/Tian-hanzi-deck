@@ -24,31 +24,32 @@ def numbered_to_accented(pinyin: str | None) -> str | None:
     if not pinyin:
         return pinyin
 
-    # Convert to lowercase for consistent output
-    pinyin = pinyin.lower()
-
     converted: list[str] = []
-    for syllable in pinyin.split():
-        if not syllable:
+    for original_syllable in pinyin.split():
+        if not original_syllable:
             continue
-        tone_char = syllable[-1]
+        tone_char = original_syllable[-1]
         tone = int(tone_char) if tone_char.isdigit() else None
-        base = syllable[:-1] if tone is not None else syllable
+        base = original_syllable[:-1] if tone is not None else original_syllable
+
+        style = _detect_case_style(base)
+        working = base.lower()
 
         if tone is None or tone in (0, 5):
-            converted.append(base)
+            converted.append(_apply_case_style(working, style))
             continue
 
-        chars = list(base.replace("v", "ü").replace("V", "Ü"))
+        chars = list(working.replace("v", "ü"))
         index = _tone_index(chars)
         if index is None:
-            converted.append(base)
+            converted.append(_apply_case_style(working, style))
             continue
         letter = chars[index]
         replacement = _TONE_MARKS.get(letter, [])
         if tone < len(replacement):
             chars[index] = replacement[tone]
-        converted.append("".join(chars))
+        accented = "".join(chars)
+        converted.append(_apply_case_style(accented, style))
 
     return " ".join(converted)
 
@@ -64,3 +65,23 @@ def _tone_index(chars: list[str]) -> int | None:
         if chars[idx].lower() in {"i", "u", "ü"}:
             return idx
     return None
+
+
+def _detect_case_style(text: str) -> str:
+    if not text:
+        return "lower"
+    if text.isupper():
+        return "upper"
+    if text[0].isupper() and text[1:].islower():
+        return "capitalized"
+    return "lower"
+
+
+def _apply_case_style(text: str, style: str) -> str:
+    if not text:
+        return text
+    if style == "upper":
+        return text.upper()
+    if style == "capitalized":
+        return text[0].upper() + text[1:]
+    return text
